@@ -32,7 +32,6 @@ public:
                                    InputArray oldPoints, InputArray oldNormals,
                                    InputArray newPoints, InputArray newNormals
                                    ) const override;
-
     template < typename T >
     bool estimateTransformT(cv::Affine3f& transform,
                             const vector<T>& oldPoints, const vector<T>& oldNormals,
@@ -298,7 +297,6 @@ struct GetAbInvoker : ParallelLoopBody
                     continue;
 
                 // build point-wise vector ab = [ A | b ]
-
                 v_float32x4 VxNv = crossProduct(newP, oldN);
                 Point3f VxN;
                 VxN.x = VxNv.get0();
@@ -449,7 +447,6 @@ struct GetAbInvoker : ParallelLoopBody
                 //try to optimize
                 Point3f VxN = newP.cross(oldN);
                 float ab[7] = {VxN.x, VxN.y, VxN.z, oldN.x, oldN.y, oldN.z, oldN.dot(-diff)};
-
                 // build point-wise upper-triangle matrix [ab^T * ab] w/o last row
                 // which is [A^T*A | A^T*b]
                 // and gather sum
@@ -545,7 +542,7 @@ void ICPImpl::getAb<UMat>(const UMat& oldPts, const UMat& oldNrm, const UMat& ne
 
     cv::String errorStr;
     ocl::ProgramSource source = ocl::rgbd::icp_oclsrc;
-    cv::String options = "-cl-fast-relaxed-math -cl-mad-enable";
+    cv::String options = "-cl-mad-enable";
     ocl::Kernel k;
     k.create("getAb", source, options, &errorStr);
 
@@ -594,8 +591,7 @@ void ICPImpl::getAb<UMat>(const UMat& oldPts, const UMat& oldNrm, const UMat& ne
            fxy.val, cxy.val,
            distanceThreshold*distanceThreshold,
            cos(angleThreshold),
-           //TODO: replace by KernelArg::Local(lsz)
-           ocl::KernelArg(ocl::KernelArg::LOCAL, 0, 1, 1, 0, lsz),
+           ocl::KernelArg::Local(lsz),
            ocl::KernelArg::WriteOnlyNoSize(groupedSumGpu)
            );
 

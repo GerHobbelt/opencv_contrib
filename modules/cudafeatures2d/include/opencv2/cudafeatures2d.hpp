@@ -414,7 +414,7 @@ public:
 
     /** Converts keypoints array from internal representation to standard vector. */
     CV_WRAP virtual void convert(InputArray gpu_keypoints,
-                         std::vector<KeyPoint>& keypoints) = 0;
+                         CV_OUT std::vector<KeyPoint>& keypoints) = 0;
 };
 
 //
@@ -474,6 +474,9 @@ public:
     //! if true, image will be blurred before descriptors calculation
     CV_WRAP virtual void setBlurForDescriptor(bool blurForDescriptor) = 0;
     CV_WRAP virtual bool getBlurForDescriptor() const = 0;
+
+    CV_WRAP virtual void setFastThreshold(int fastThreshold) = 0;
+    CV_WRAP virtual int getFastThreshold() const = 0;
 };
 
 //! @}

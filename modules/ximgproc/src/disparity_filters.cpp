@@ -244,6 +244,8 @@ void DisparityWLSFilterImpl::filter(InputArray disparity_map_left, InputArray le
     filter_(left, left_view, filt_disp, right, ROI);
     if (disparity_map_left.depth() != CV_32F){
         filt_disp.convertTo(filtered_disparity_map, disparity_map_left.depth());
+    } else {
+        filt_disp.copyTo(filtered_disparity_map);
     }
 }
 
@@ -418,7 +420,6 @@ void DisparityWLSFilterImpl::ParallelMatOp_ParBody::operator() (const Range& ran
         (wls->*ops[i])(*src[i],*dst[i]);
 }
 
-CV_EXPORTS_W
 Ptr<DisparityWLSFilter> createDisparityWLSFilter(Ptr<StereoMatcher> matcher_left)
 {
     Ptr<DisparityWLSFilter> wls;
@@ -449,7 +450,6 @@ Ptr<DisparityWLSFilter> createDisparityWLSFilter(Ptr<StereoMatcher> matcher_left
     return wls;
 }
 
-CV_EXPORTS_W
 Ptr<StereoMatcher> createRightMatcher(Ptr<StereoMatcher> matcher_left)
 {
     int min_disp = matcher_left->getMinDisparity();
@@ -483,7 +483,6 @@ Ptr<StereoMatcher> createRightMatcher(Ptr<StereoMatcher> matcher_left)
     }
 }
 
-CV_EXPORTS_W
 Ptr<DisparityWLSFilter> createDisparityWLSFilterGeneric(bool use_confidence)
 {
     return Ptr<DisparityWLSFilter>(DisparityWLSFilterImpl::create(use_confidence));

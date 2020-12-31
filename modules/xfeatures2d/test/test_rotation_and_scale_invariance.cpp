@@ -20,23 +20,19 @@ INSTANTIATE_TEST_CASE_P(SURF, DetectorRotationInvariance, Values(
     make_tuple(IMAGE_TSUKUBA, SURF::create(), 0.40f, 0.76f)
 ));
 
-INSTANTIATE_TEST_CASE_P(SIFT, DetectorRotationInvariance, Values(
-    make_tuple(IMAGE_TSUKUBA, SIFT::create(), 0.45f, 0.70f)
-));
-
 INSTANTIATE_TEST_CASE_P(SURF, DescriptorRotationInvariance, Values(
     make_tuple(IMAGE_TSUKUBA, SURF::create(), SURF::create(), 0.83f)
 ));
 
-INSTANTIATE_TEST_CASE_P(SIFT, DescriptorRotationInvariance, Values(
-    make_tuple(IMAGE_TSUKUBA, SIFT::create(), SIFT::create(), 0.98f)
-));
+#endif // NONFREE
 
 INSTANTIATE_TEST_CASE_P(LATCH, DescriptorRotationInvariance, Values(
-    make_tuple(IMAGE_TSUKUBA, SIFT::create(), LATCH::create(), 0.9999f)
+    make_tuple(IMAGE_TSUKUBA, SIFT::create(), LATCH::create(), 0.98f)
 ));
 
-#endif // NONFREE
+INSTANTIATE_TEST_CASE_P(BEBLID, DescriptorRotationInvariance, Values(
+    make_tuple(IMAGE_TSUKUBA, SIFT::create(), BEBLID::create(6.75), 0.98f)
+));
 
 INSTANTIATE_TEST_CASE_P(DAISY, DescriptorRotationInvariance, Values(
     make_tuple(IMAGE_TSUKUBA,
@@ -154,21 +150,13 @@ INSTANTIATE_TEST_CASE_P(BoostDesc_BINBOOST_256, DescriptorRotationInvariance, Va
 
 // ============================ SCALE INVARIANCE ==============================
 
-
 #ifdef OPENCV_ENABLE_NONFREE
 INSTANTIATE_TEST_CASE_P(SURF, DetectorScaleInvariance, Values(
     make_tuple(IMAGE_BIKES, SURF::create(), 0.64f, 0.84f)
 ));
 
-INSTANTIATE_TEST_CASE_P(SIFT, DetectorScaleInvariance, Values(
-    make_tuple(IMAGE_BIKES, SIFT::create(), 0.55f, 0.99f)
-));
-
 INSTANTIATE_TEST_CASE_P(SURF, DescriptorScaleInvariance, Values(
     make_tuple(IMAGE_BIKES, SURF::create(), SURF::create(), 0.7f)
-));
-INSTANTIATE_TEST_CASE_P(SIFT, DescriptorScaleInvariance, Values(
-    make_tuple(IMAGE_BIKES, SIFT::create(), SIFT::create(), 0.3f)
 ));
 #endif // NONFREE
 
@@ -284,6 +272,7 @@ TEST(Features2d_RotationInvariance2_Detector_SURF, regression)
             ASSERT_LT(fabs(keypoints[i1].response - keypoints[i].response) / keypoints[i1].response, 1e-6);
     }
 }
+
 #endif // NONFREE
 
 }} // namespace

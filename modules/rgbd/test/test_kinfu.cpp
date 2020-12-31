@@ -141,7 +141,7 @@ struct CubeSpheresScene : Scene
         Range range(0, frame.rows);
         parallel_for_(range, RenderInvoker<CubeSpheresScene>(frame, pose, reproj, depthFactor));
 
-        return frame;
+        return std::move(frame);
     }
 
     std::vector<Affine3f> getPoses() override
@@ -237,7 +237,7 @@ struct RotatingScene : Scene
         Range range(0, frame.rows);
         parallel_for_(range, RenderInvoker<RotatingScene>(frame, pose, reproj, depthFactor));
 
-        return frame;
+        return std::move(frame);
     }
 
     std::vector<Affine3f> getPoses() override
@@ -276,13 +276,16 @@ Ptr<Scene> Scene::create(int nScene, Size sz, Matx33f _intr, float _depthFactor)
 
 static const bool display = false;
 
-void flyTest(bool hiDense, bool inequal)
+void flyTest(bool hiDense, bool inequal, bool hashTsdf = false)
 {
     Ptr<kinfu::Params> params;
     if(hiDense)
         params = kinfu::Params::defaultParams();
     else
         params = kinfu::Params::coarseParams();
+
+    if(hashTsdf)
+        params = kinfu::Params::hashTSDFParams(!hiDense);
 
     if(inequal)
     {
@@ -369,4 +372,10 @@ TEST(KinectFusion, DISABLED_OCL)
 }
 #endif
 
+TEST( KinectFusion, DISABLED_hashTsdf )
+{
+    flyTest(false, false, true);
+    //! hashTSDF does not support non-equal volumeDims
+    flyTest(true, false, true);
+}
 }} // namespace

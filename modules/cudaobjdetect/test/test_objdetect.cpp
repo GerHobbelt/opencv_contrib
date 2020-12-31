@@ -152,7 +152,7 @@ struct HOG : testing::TestWithParam<cv::cuda::DeviceInfo>
 };
 
 // desabled while resize does not fixed
-CUDA_TEST_P(HOG, DISABLED_Detect)
+CUDA_TEST_P(HOG, detect)
 {
     cv::Mat img_rgb = readImage("hog/road.png");
     ASSERT_FALSE(img_rgb.empty());

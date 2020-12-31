@@ -337,7 +337,15 @@ CUDA_TEST_P(FarnebackOpticalFlow, Accuracy)
         frame0, frame1, flow, farn->getPyrScale(), farn->getNumLevels(), farn->getWinSize(),
         farn->getNumIters(), farn->getPolyN(), farn->getPolySigma(), farn->getFlags());
 
-    EXPECT_MAT_SIMILAR(flow, d_flow, 0.1);
+    // Relax test limit when the flag is set
+    if (farn->getFlags() & cv::OPTFLOW_FARNEBACK_GAUSSIAN)
+    {
+        EXPECT_MAT_SIMILAR(flow, d_flow, 2e-2);
+    }
+    else
+    {
+        EXPECT_MAT_SIMILAR(flow, d_flow, 1e-4);
+    }
 }
 
 INSTANTIATE_TEST_CASE_P(CUDA_OptFlow, FarnebackOpticalFlow, testing::Combine(
@@ -385,7 +393,7 @@ CUDA_TEST_P(OpticalFlowDual_TVL1, Accuracy)
     cv::cuda::GpuMat d_flow;
     d_alg->calc(loadMat(frame0), loadMat(frame1), d_flow);
 
-    cv::Ptr<cv::DualTVL1OpticalFlow> alg = cv::createOptFlow_DualTVL1();
+    cv::Ptr<cv::optflow::DualTVL1OpticalFlow> alg = cv::optflow::createOptFlow_DualTVL1();
     alg->setMedianFiltering(1);
     alg->setInnerIterations(1);
     alg->setOuterIterations(d_alg->getNumIterations());
@@ -397,10 +405,173 @@ CUDA_TEST_P(OpticalFlowDual_TVL1, Accuracy)
     EXPECT_MAT_SIMILAR(flow, d_flow, 4e-3);
 }
 
+class TVL1AsyncParallelLoopBody : public cv::ParallelLoopBody
+{
+public:
+    TVL1AsyncParallelLoopBody(const cv::cuda::GpuMat& d_img1_, const cv::cuda::GpuMat& d_img2_, cv::cuda::GpuMat* d_flow_, int iterations_, double gamma_)
+        : d_img1(d_img1_), d_img2(d_img2_), d_flow(d_flow_), iterations(iterations_), gamma(gamma_) {}
+    ~TVL1AsyncParallelLoopBody() {}
+    void operator()(const cv::Range& r) const
+    {
+        for (int i = r.start; i < r.end; i++) {
+            cv::cuda::Stream stream;
+            cv::Ptr<cv::cuda::OpticalFlowDual_TVL1> d_alg = cv::cuda::OpticalFlowDual_TVL1::create();
+            d_alg->setNumIterations(iterations);
+            d_alg->setGamma(gamma);
+            d_alg->calc(d_img1, d_img2, d_flow[i], stream);
+            stream.waitForCompletion();
+        }
+    }
+protected:
+    const cv::cuda::GpuMat& d_img1;
+    const cv::cuda::GpuMat& d_img2;
+    cv::cuda::GpuMat* d_flow;
+    int iterations;
+    double gamma;
+};
+
+#define NUM_STREAMS 16
+
+CUDA_TEST_P(OpticalFlowDual_TVL1, Async)
+{
+    if (!supportFeature(devInfo, cv::cuda::FEATURE_SET_COMPUTE_30))
+    {
+        throw SkipTestException("CUDA device doesn't support texture objects");
+    }
+    else
+    {
+        cv::Mat frame0 = readImage("opticalflow/rubberwhale1.png", cv::IMREAD_GRAYSCALE);
+        ASSERT_FALSE(frame0.empty());
+
+        cv::Mat frame1 = readImage("opticalflow/rubberwhale2.png", cv::IMREAD_GRAYSCALE);
+        ASSERT_FALSE(frame1.empty());
+
+        const int iterations = 10;
+
+        // Synchronous call
+        cv::Ptr<cv::cuda::OpticalFlowDual_TVL1> d_alg =
+                cv::cuda::OpticalFlowDual_TVL1::create();
+        d_alg->setNumIterations(iterations);
+        d_alg->setGamma(gamma);
+
+        cv::cuda::GpuMat d_flow_gold;
+        d_alg->calc(loadMat(frame0), loadMat(frame1), d_flow_gold);
+
+        // Asynchronous call
+        cv::cuda::GpuMat d_flow[NUM_STREAMS];
+        cv::parallel_for_(cv::Range(0, NUM_STREAMS), TVL1AsyncParallelLoopBody(loadMat(frame0), loadMat(frame1), d_flow, iterations, gamma));
+
+        // Compare the results of synchronous call and asynchronous call
+        for (int i = 0; i < NUM_STREAMS; i++)
+            EXPECT_MAT_NEAR(d_flow_gold, d_flow[i], 0.0);
+    }
+}
+
 INSTANTIATE_TEST_CASE_P(CUDA_OptFlow, OpticalFlowDual_TVL1, testing::Combine(
     ALL_DEVICES,
     testing::Values(Gamma(0.0), Gamma(1.0))));
 
+
+//////////////////////////////////////////////////////
+// NvidiaOpticalFlow_1_0
+
+struct NvidiaOpticalFlow_1_0 : testing::TestWithParam<cv::cuda::DeviceInfo>
+{
+    cv::cuda::DeviceInfo devInfo;
+
+    virtual void SetUp()
+    {
+        devInfo = GetParam();
+
+        cv::cuda::setDevice(devInfo.deviceID());
+    }
+};
+
+CUDA_TEST_P(NvidiaOpticalFlow_1_0, Regression)
+{
+    cv::Mat frame0 = readImage("opticalflow/frame0.png", cv::IMREAD_GRAYSCALE);
+    ASSERT_FALSE(frame0.empty());
+
+    cv::Mat frame1 = readImage("opticalflow/frame1.png", cv::IMREAD_GRAYSCALE);
+    ASSERT_FALSE(frame1.empty());
+
+    const int width = frame0.size().width;
+    const int height = frame0.size().height;
+    const bool enableTemporalHints = false;
+    const bool enableExternalHints = false;
+    const bool enableCostBuffer = false;
+    const int gpuid = 0;
+
+    cv::Ptr<cv::cuda::NvidiaOpticalFlow_1_0> d_nvof;
+    try
+    {
+        d_nvof = cv::cuda::NvidiaOpticalFlow_1_0::create(width, height,
+            cv::cuda::NvidiaOpticalFlow_1_0::NVIDIA_OF_PERF_LEVEL::NV_OF_PERF_LEVEL_SLOW,
+            enableTemporalHints, enableExternalHints, enableCostBuffer, gpuid);
+    }
+    catch (const cv::Exception& e)
+    {
+        if (e.code == Error::StsBadFunc || e.code == Error::StsBadArg || e.code == Error::StsNullPtr)
+            throw SkipTestException("Current configuration is not supported");
+        throw;
+    }
+    const int gridSize = d_nvof->getGridSize();
+
+    Mat flow, upsampledFlow;
+    d_nvof->calc(loadMat(frame0), loadMat(frame1), flow);
+    d_nvof->upSampler(flow, width, height, gridSize, upsampledFlow);
+
+    std::string fname(cvtest::TS::ptr()->get_data_path());
+    fname += "opticalflow/nvofGolden.flo";
+    cv::Mat golden = cv::readOpticalFlow(fname.c_str());
+    ASSERT_FALSE(golden.empty());
+
+    EXPECT_MAT_SIMILAR(golden, upsampledFlow, 1e-10);
+}
+
+CUDA_TEST_P(NvidiaOpticalFlow_1_0, OpticalFlowNan)
+{
+    cv::Mat frame0 = readImage("opticalflow/rubberwhale1.png", cv::IMREAD_GRAYSCALE);
+    ASSERT_FALSE(frame0.empty());
+
+    cv::Mat frame1 = readImage("opticalflow/rubberwhale2.png", cv::IMREAD_GRAYSCALE);
+    ASSERT_FALSE(frame1.empty());
+
+    cv::Mat r_frame0, r_frame1;
+
+    const int width = frame0.size().width;
+    const int height = frame0.size().height;
+    const bool enableTemporalHints = false;
+    const bool enableExternalHints = false;
+    const bool enableCostBuffer = false;
+    const int gpuid = 0;
+
+    cv::Ptr<cv::cuda::NvidiaOpticalFlow_1_0> d_nvof;
+    try
+    {
+        d_nvof = cv::cuda::NvidiaOpticalFlow_1_0::create(width, height,
+            cv::cuda::NvidiaOpticalFlow_1_0::NVIDIA_OF_PERF_LEVEL::NV_OF_PERF_LEVEL_SLOW,
+            enableTemporalHints, enableExternalHints, enableCostBuffer, gpuid);
+    }
+    catch (const cv::Exception& e)
+    {
+        if (e.code == Error::StsBadFunc || e.code == Error::StsBadArg || e.code == Error::StsNullPtr)
+            throw SkipTestException("Current configuration is not supported");
+        throw;
+    }
+
+    Mat flow, flowx, flowy;
+    d_nvof->calc(loadMat(frame0), loadMat(frame1), flow);
+
+    Mat planes[] = { flowx, flowy };
+    split(flow, planes);
+    flowx = planes[0]; flowy = planes[1];
+
+    EXPECT_TRUE(cv::checkRange(flowx));
+    EXPECT_TRUE(cv::checkRange(flowy));
+};
+
+INSTANTIATE_TEST_CASE_P(CUDA_OptFlow, NvidiaOpticalFlow_1_0, ALL_DEVICES);
 
 }} // namespace
 #endif // HAVE_CUDA

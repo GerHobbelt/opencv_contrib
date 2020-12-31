@@ -44,22 +44,12 @@
 #ifndef __VIDEO_DECODER_HPP__
 #define __VIDEO_DECODER_HPP__
 
-#if CUDA_VERSION >= 9000
-    #include <dynlink_nvcuvid.h>
-#else
-    #include <nvcuvid.h>
-#endif
-
-#include "opencv2/core/private.cuda.hpp"
-#include "opencv2/cudacodec.hpp"
-
-namespace cv { namespace cudacodec { namespace detail
-{
+namespace cv { namespace cudacodec { namespace detail {
 
 class VideoDecoder
 {
 public:
-    VideoDecoder(const FormatInfo& videoFormat, CUvideoctxlock lock) : lock_(lock), decoder_(0)
+    VideoDecoder(const FormatInfo& videoFormat, CUcontext ctx, CUvideoctxlock lock) : ctx_(ctx), lock_(lock), decoder_(0)
     {
         create(videoFormat);
     }
@@ -83,6 +73,7 @@ public:
     unsigned long targetHeight() const { return createInfo_.ulTargetHeight; }
 
     cudaVideoChromaFormat chromaFormat() const { return createInfo_.ChromaFormat; }
+    int nBitDepthMinus8() const { return createInfo_.bitDepthMinus8; }
 
     bool decodePicture(CUVIDPICPARAMS* picParams)
     {
@@ -96,6 +87,7 @@ public:
 
         cuSafeCall( cuvidMapVideoFrame(decoder_, picIdx, &ptr, &pitch, &videoProcParams) );
 
+
         return cuda::GpuMat(targetHeight() * 3 / 2, targetWidth(), CV_8UC1, (void*) ptr, pitch);
     }
 
@@ -107,6 +99,7 @@ public:
 
 private:
     CUvideoctxlock lock_;
+    CUcontext ctx_;
     CUVIDDECODECREATEINFO createInfo_;
     CUvideodecoder        decoder_;
 };
