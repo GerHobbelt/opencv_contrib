@@ -258,7 +258,8 @@ namespace omnidir
         const Size& imageSize1, const Size& imageSize2, InputOutputArray K1, InputOutputArray xi1, InputOutputArray D1, InputOutputArray K2, InputOutputArray xi2,
         InputOutputArray D2, OutputArray rvec, OutputArray tvec, OutputArrayOfArrays rvecsL, OutputArrayOfArrays tvecsL, int flags, TermCriteria criteria, OutputArray idx=noArray());
 
-    /** @brief Stereo rectification for omnidirectional camera model. It computes the rectification rotations for two cameras
+    /** @brief Stereo rectification for omnidirectional camera model. It computes only the rectification rotations for
+    the two cameras of the stereo pair.
 
     @param R Rotation between the first and second camera (rotation of second camera into first one)
     @param T Translation between the first and second camera (translation of second camera into first one)
@@ -266,6 +267,86 @@ namespace omnidir
     @param R2 Output 3x3 rotation matrix for the second camera
     */
     CV_EXPORTS_W void stereoRectify(InputArray R, InputArray T, OutputArray R1, OutputArray R2);
+
+    /** @brief Stereo rectification for omnidirectional camera model. Estimates the rectification rotations and new projection matrices for
+    the two cameras of the stereo pair.
+
+    @param K1 First camera intrinsic matrix.
+    @param D1 First camera distortion parameters.
+    @param xi1 First camera parameter xi of Mei's model.
+    @param K2 Second camera intrinsic matrix.
+    @param D2 Second camera distortion parameters.
+    @param xi2 Second camera parameter xi of Mei's model.
+    @param imageSize Size of the image used for stereo calibration.
+    @param R Rotation matrix that rotates the coordinate systems of the second camera into the coordinate system of the first
+    camera (see @ref stereoCalibrate ).
+    @param tvec Translation vector that translates the coordinate system of the second camera into the coordinate system of the
+    second camera (see @ref stereoCalibrate ).
+    @param R1 Output 3x3 rectification transform (rotation matrix) for the first camera.
+    @param R2 Output 3x3 rectification transform (rotation matrix) for the second camera.
+    @param P1 Output 3x4 (rectificationType=RECTIFY_PERSPECTIVE) or 3x3 (rectificationType=RECTIFY_LONGLATI) projection matrix in
+    the new (rectified) coordinate systems for the first camera. See detailed function description for more info.
+    @param P2 Output 3x4 (rectificationType=RECTIFY_PERSPECTIVE) or 3x3 (rectificationType=RECTIFY_LONGLATI) projection matrix in
+    the new (rectified) coordinate systems for the second camera. See detailed function description for more info.
+    @param Q Output 4x4 disparity-to-depth mapping matrix (see reprojectImageTo3D) if rectificationType=RECTIFY_PERSPECTIVE,
+    otherwise Q is cleared (empty Mat).
+    @param flags Operation flags that may be zero or @ref CALIB_ZERO_DISPARITY . If the flag is set,
+    the function makes the principal points of each camera have the same pixel coordinates in the
+    rectified views. And if the flag is not set, the function may still shift the images in the
+    horizontal or vertical direction (depending on the orientation of epipolar lines) to maximize the
+    useful image area.
+    @param rectificationType Flag indicates the rectification type for the output, possibilities:
+    RECTIFY_PERSPECTIVE, RECTIFY_LONGLATI. Other projections are not supported for stereo rectification.
+    @param newSize New image resolution after rectification. The same size should be passed to @ref initUndistortRectifyMap .
+    When (0,0) is passed (default), it is set to the original imageSize. Setting it to larger value can help you preserve details in
+    the original image, especially when there is a big radial distortion.
+    @param scale0 If rectificationType=RECTIFY_PERSPECTIVE, this parameter sets the new focal length in the range between the min focal
+    length and the max focal length (needs to be in the range of [0, 1]). For rectificationType=RECTIFY_LONGLATI, this parameter is used
+    to scale the horizontal field of view (fov) (> 1: increase fov, < 1: decrease fov, needs to be >0).
+    @param scale1 If rectificationType=RECTIFY_PERSPECTIVE, this parameter is used as divisor for the new focal length. For
+    rectificationType=RECTIFY_LONGLATI, this parameter is used to scale the vertical field of view (fov) (> 1: increase fov,
+    < 1: decrease fov, needs to be >0).
+
+    The rectification transformations R1 and R2 are calculated calling @ref stereoRectify(InputArray R, InputArray T, OutputArray R1, OutputArray R2) .
+    In addition, the new projection matrices P1 and P2 are calculated from the new camera matrices (\f$K1_{new}\f$, \f$K2_{new}\f$) estimated with
+    @ref estimateNewCameraMatrixForUndistortRectify . Independent of the rectificationType, the following parameters are calculated the same:
+    - \f$f_{rect}\f$: the minimum vertical focal length of \f$K1_{new}\f$ and \f$K2_{new}\f$
+    - \f$c1_{rect} = c2_{rect}\f$: the average of the principal points of \f$K1_{new}\f$ and \f$K2_{new}\f$ if flags == CALIB_ZERO_DISPARITY,
+    otherwise only the \f$y\f$-values of \f$c1_{rect}\f$ and \f$c2_{rect}\f$ are set to the average and the \f$x\f$-values are set to the
+    \f$x\f$-values of the principal points of \f$K1_{new}\f$ and \f$K2_{new}\f$, respectively.
+
+    Using the above parameters, P1 and P2 are defined as follows depending on the rectificationType:
+
+    - RECTIFY_PERSPECTIVE:
+    P1 and P2 are 3x4 projection matrices and they are calculated the same way as for the fisheye camera model (see @ref cv::fisheye::stereoRectify ).
+    \f[P1 = \begin{bmatrix}
+    f_{rect} & 0 & c1_{rect}(x) & 0 \\
+    0 & f_{rect} & c1_{rect}(y) & 0 \\
+    0 & 0 & 1 & 0
+    \end{bmatrix},
+    P2 = \begin{bmatrix}
+    f_{rect} & 0 & c2_{rect}(x) & b \cdot f_{rect} \\
+    0 & f_{rect} & c2_{rect}(y) & 0 \\
+    0 & 0 & 1 & 0
+    \end{bmatrix},\f]
+    with \f$b\f$ being the baseline between the two rectified cameras.
+
+    - RECTIFY_LONGLATI:
+    \f[P1 = \begin{bmatrix}
+    f_{rect} & 0 & c1_{rect}(x)\\
+    0 & f_{rect} & c1_{rect}(y)\\
+    0 & 0 & 1
+    \end{bmatrix},
+    P2 = \begin{bmatrix}
+    f_{rect} & 0 & c2_{rect}(x)\\
+    0 & f_{rect} & c2_{rect}(y)\\
+    0 & 0 & 1
+    \end{bmatrix}.\f]
+    */
+
+    CV_EXPORTS_W void stereoRectify(cv::InputArray K1, cv::InputArray D1, cv::InputArray xi1, cv::InputArray K2, cv::InputArray D2, cv::InputArray xi2, const cv::Size &imageSize, cv::InputArray R, cv::InputArray tvec,
+        cv::OutputArray R1, cv::OutputArray R2, cv::OutputArray P1, cv::OutputArray P2, cv::OutputArray Q, int flags, int rectificationType, const cv::Size &newSize,
+        double scale0, double scale1);
 
     /** @brief Stereo 3D reconstruction from a pair of images
 

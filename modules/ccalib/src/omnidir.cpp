@@ -2328,8 +2328,8 @@ cv::Vec3d cv::omnidir::internal::findMedian3(InputArray mat)
 
 void cv::omnidir::stereoRectify(InputArray R, InputArray T, OutputArray R1, OutputArray R2)
 {
-    CV_Assert((R.size() == Size(3,3) || R.total() == 3) && (R.depth() == CV_32F || R.depth() == CV_64F));
-    CV_Assert(T.total() == 3  && (T.depth() == CV_32F || T.depth() == CV_64F));
+    CV_Assert((R.size() == Size(3,3) || R.total() * R.channels() == 3) && (R.depth() == CV_32F || R.depth() == CV_64F));
+    CV_Assert(T.total() * T.channels() == 3 && (T.depth() == CV_32F || T.depth() == CV_64F));
 
     Mat _R, _T;
     if (R.size() == Size(3, 3))
@@ -2363,6 +2363,65 @@ void cv::omnidir::stereoRectify(InputArray R, InputArray T, OutputArray R1, Outp
     e3.copyTo(_R1.row(2));
     _R2 = _R1 * R21;
 
+}
+
+void cv::omnidir::stereoRectify(InputArray K1, InputArray D1, InputArray xi1, InputArray K2, InputArray D2, InputArray xi2, const Size &imageSize, InputArray R, InputArray tvec,
+    OutputArray R1, OutputArray R2, OutputArray P1, OutputArray P2, OutputArray Q, int flags, int rectificationType, const Size &newSize,
+    double scale0, double scale1)
+{
+    CV_Assert((R.size() == Size(3, 3) || R.total() * R.channels() == 3) && (R.depth() == CV_32F || R.depth() == CV_64F));
+    CV_Assert(tvec.total() * tvec.channels() == 3 && (tvec.depth() == CV_32F || tvec.depth() == CV_64F));
+    CV_Assert(rectificationType == omnidir::RECTIFY_PERSPECTIVE || rectificationType == omnidir::RECTIFY_LONGLATI);
+    CV_Assert(xi1.total() == 1 && (xi1.depth() == CV_64F || xi1.depth() == CV_32F));
+    CV_Assert(xi2.total() == 1 && (xi2.depth() == CV_64F || xi2.depth() == CV_32F));
+
+    stereoRectify(R, tvec, R1, R2);
+
+    Vec3d _tvec;
+    tvec.getMat().convertTo(_tvec, CV_64F);
+    Mat _R2 = R2.getMat();
+
+    Vec3d tnew = Matx33d(_R2) * _tvec;
+
+    Matx33d newK1, newK2;
+    estimateNewCameraMatrixForUndistortRectify(K1, D1, xi1, imageSize, R1, newK1, rectificationType, scale0, scale1, newSize);
+    estimateNewCameraMatrixForUndistortRectify(K2, D2, xi2, imageSize, R2, newK2, rectificationType, scale0, scale1, newSize);
+
+    // Vertical focal length must be the same for both images to keep the epipolar constraint use fy for fx also.
+    // For simplicity, set the principal points for both cameras to be the average
+    // of the two principal points (either one of or both x- and y- coordinates)
+    double fc_new = std::min(newK1(1,1), newK2(1,1));
+    Point2d cc_new[2] = { Vec2d(newK1(0, 2), newK1(1, 2)), Vec2d(newK2(0, 2), newK2(1, 2)) };
+
+    if( flags & CALIB_ZERO_DISPARITY )
+        cc_new[0] = cc_new[1] = (cc_new[0] + cc_new[1]) * 0.5;
+    else
+        cc_new[0].y = cc_new[1].y = (cc_new[0].y + cc_new[1].y)*0.5;
+
+    // calculate projection/camera matrices. these contain the relevant rectified image internal params (fx, fy=fx, cx, cy)
+    if (rectificationType == omnidir::RECTIFY_PERSPECTIVE) {
+        Mat(Matx34d(fc_new, 0, cc_new[0].x, 0,
+                    0, fc_new, cc_new[0].y, 0,
+                    0,      0,           1, 0), false).convertTo(P1, P1.empty() ? CV_64F : P1.type());
+        Mat(Matx34d(fc_new, 0, cc_new[1].x, tnew[0]*fc_new, // baseline * focal length;,
+                    0, fc_new, cc_new[1].y,              0,
+                    0,      0,           1,              0), false).convertTo(P2, P2.empty() ? CV_64F : P2.type());
+
+        if (Q.needed())
+            Mat(Matx44d(1, 0, 0,           -cc_new[0].x,
+                        0, 1, 0,           -cc_new[0].y,
+                        0, 0, 0,            fc_new,
+                        0, 0, -1./tnew[0], (cc_new[0].x - cc_new[1].x)/tnew[0]), false).convertTo(Q, Q.empty() ? CV_64F : Q.depth());
+    } else {
+        Mat(Matx33d(fc_new, 0, cc_new[0].x,
+                    0, fc_new, cc_new[0].y,
+                    0,      0,           1), false).convertTo(P1, P1.empty() ? CV_64F : P1.type());
+        Mat(Matx33d(fc_new, 0, cc_new[1].x,
+                    0, fc_new, cc_new[1].y,
+                    0,      0,           1), false).convertTo(P2, P2.empty() ? CV_64F : P2.type());
+        if (Q.needed() && !Q.empty())
+            Q.clear();
+    }
 }
 
 void cv::omnidir::internal::getInterset(InputArray idx1, InputArray idx2, OutputArray inter1, OutputArray inter2,
