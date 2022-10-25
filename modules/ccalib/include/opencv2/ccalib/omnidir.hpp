@@ -348,6 +348,99 @@ namespace omnidir
         cv::OutputArray R1, cv::OutputArray R2, cv::OutputArray P1, cv::OutputArray P2, cv::OutputArray Q, int flags, int rectificationType, const cv::Size &newSize,
         double scale0, double scale1);
 
+    /** @brief Reprojects a disparity image created from a image pair that was stereo rectified with the omni-directional camera
+    model to 3D space.
+
+    @param disparity Input single-channel 8-bit unsigned, 16-bit signed, 32-bit signed or 32-bit
+    floating-point disparity image. The values of 8-bit / 16-bit signed formats are assumed to have no
+    fractional bits. If the disparity is 16-bit signed format, as computed by @ref StereoBM or
+    @ref StereoSGBM and maybe other algorithms, it should be divided by 16 (and scaled to float) before
+    being used here.
+    @param _3dImage Output 3-channel floating-point image of the same size as disparity. Each element of
+    _3dImage(x,y) contains 3D coordinates of the point (x,y) computed from the disparity map. Depending
+    on T or Q the returned points are represented in the rectified coordinate system of the first or second
+    camera.
+    @param P Projection matrix of disparity image (see P1 or P2 estimated with @ref stereoRectify(cv::InputArray K1, cv::InputArray D1, cv::InputArray xi1,
+    cv::InputArray K2, cv::InputArray D2, cv::InputArray xi2, const cv::Size &imageSize, cv::InputArray R, cv::InputArray tvec, cv::OutputArray R1,
+    cv::OutputArray R2, cv::OutputArray P1, cv::OutputArray P2, cv::OutputArray Q, int flags, int rectificationType, const cv::Size &newSize,
+    double scale0, double scale1) )
+    @param T Translation between the first and second camera
+    @param Q \f$4 \times 4\f$ perspective transformation matrix that can be obtained with @ref stereoRectify(cv::InputArray K1, cv::InputArray D1,
+    cv::InputArray xi1, cv::InputArray K2, cv::InputArray D2, cv::InputArray xi2, const cv::Size &imageSize, cv::InputArray R, cv::InputArray tvec,
+    cv::OutputArray R1, cv::OutputArray R2, cv::OutputArray P1, cv::OutputArray P2, cv::OutputArray Q, int flags, int rectificationType,
+    const cv::Size &newSize, double scale0, double scale1).
+    Only used for rectificationType=RECTIFY_PERSPECTIVE. If not provided, P and T are used to obtain Q
+    (rectificationType=RECTIFY_PERSPECTIVE). If one uses Q obtained by @ref stereoRectify(cv::InputArray K1, cv::InputArray D1, cv::InputArray xi1,
+    cv::InputArray K2, cv::InputArray D2, cv::InputArray xi2, const cv::Size &imageSize, cv::InputArray R, cv::InputArray tvec, cv::OutputArray R1,
+    cv::OutputArray R2, cv::OutputArray P1, cv::OutputArray P2, cv::OutputArray Q, int flags, int rectificationType, const cv::Size &newSize,
+    double scale0, double scale1), the returned points in _3dImage are represented in the first camera's rectified coordinate system. Not used if
+    rectificationType=RECTIFY_LONGLATI. By default it is @ref cv::noArray.
+    @param rectificationType Flag indicates the rectification type used for stereo rectification. Supported
+    are RECTIFY_PERSPECTIVE and RECTIFY_LONGLATI.
+    @param handleMissingValues Indicates, whether the function should handle missing values (i.e.
+    points where the disparity was not computed). If handleMissingValues=true, then pixels with the
+    minimal disparity that corresponds to the outliers (see StereoMatcher::compute ) are transformed
+    to 3D points with a very large Z value (currently set to 10000).
+    @param ddepth The optional output array depth. If it is -1, the output image will have CV_32F
+    depth. ddepth can also be set to CV_16S, CV_32S or CV_32F.
+
+    The function transforms a single-channel disparity map to a 3-channel image representing a 3D
+    surface. That is, for each pixel (x,y) and the corresponding disparity d=disparity(x,y) , it
+    computes 3D points depending on the rectification type:
+
+    - reftification_type=RECTIFY_PERSPECTIVE:
+    \f[\begin{bmatrix}
+    X \\
+    Y \\
+    Z \\
+    W
+    \end{bmatrix} = Q \begin{bmatrix}
+    x \\
+    y \\
+    \texttt{disparity} (x,y) \\
+    1
+    \end{bmatrix}.\f]
+    The final 3D points are obtained as follows
+    \f[\begin{bmatrix}
+    p_x \\
+    p_y \\
+    p_z
+    \end{bmatrix} = \begin{bmatrix}
+    X/W \\
+    Y/W \\
+    Z/W
+    \end{bmatrix}.\f]
+
+    - rectificationType=RECTIFY_LONGLATI:
+    If rectification was done using spherical projection, pixel coordinates indicate latitude and longitude angles.
+    To transform from pixel coordinates to angles, the new projection matrix P has to contain the required scaling factors
+    and offsets (see @ref estimateNewCameraMatrixForUndistortRectify ) to compute theta and phi as follows:
+    \f[\begin{bmatrix}
+    \theta \\
+    \phi
+    \end{bmatrix} = \begin{bmatrix}
+    x/P_{00} - P_{02}/P_{00} \\
+    y/P_{11} - P_{12}/P_{11}
+    \end{bmatrix}.\f]
+    Finally, 3D coordinates are calculated using spherical coordinates:
+    \f[\begin{bmatrix}
+    p_x \\
+    p_y \\
+    p_z
+    \end{bmatrix} = \begin{bmatrix}
+    -\cos(\theta) \\
+    -\sin(\theta) \cdot \cos(\phi) \\
+    \sin(\theta) \cdot \sin(\phi)
+    \end{bmatrix} \cdot \texttt{depth},\f]
+    with \f[\texttt{depth} = |T| \cdot \frac{P_{00}}{\texttt{disparity} (x,y)}.\f]
+    */
+    CV_EXPORTS_W void reprojectImageTo3D( InputArray disparity,
+                                          OutputArray _3dImage, InputArray P, InputArray T,
+                                          InputArray Q = cv::noArray(),
+                                          int rectificationType = RECTIFY_PERSPECTIVE,
+                                          bool handleMissingValues = false,
+                                          int ddepth = -1 );
+
     /** @brief Stereo 3D reconstruction from a pair of images
 
     @param image1 The first input image

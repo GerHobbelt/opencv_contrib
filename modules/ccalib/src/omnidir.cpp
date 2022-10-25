@@ -1515,6 +1515,144 @@ double cv::omnidir::stereoCalibrate(InputOutputArrayOfArrays objectPoints, Input
     return rms;
 }
 
+void cv::omnidir::reprojectImageTo3D( InputArray disparity,
+                                      OutputArray _3dImage,
+                                      InputArray P, InputArray T, InputArray Q,
+                                      int rectificationType,
+                                      bool handleMissingValues,
+                                      int ddepth ) {
+    CV_Assert(rectificationType == RECTIFY_PERSPECTIVE || rectificationType == RECTIFY_LONGLATI);
+    CV_Assert((!P.empty() && !T.empty()) || (rectificationType == RECTIFY_PERSPECTIVE && !Q.empty()));
+
+    if (rectificationType == RECTIFY_PERSPECTIVE)
+    {
+        Mat _Q;
+        if (Q.empty())
+        {
+            CV_Assert(T.total() * T.channels() == 3 && (T.depth() == CV_32F || T.depth() == CV_64F));
+            CV_Assert((P.size() == Size(3, 3) || P.size() == Size(4, 3)) && (P.depth() == CV_64F || P.depth() == CV_32F));
+            Matx33d K = Matx33d::eye();
+            P.getMat().colRange(0, 3).convertTo(K, CV_64F);
+            Vec3d tvec;
+            T.getMat().convertTo(tvec, CV_64F);
+
+            Mat(Matx44d(1, 0, 0,           -K(0, 2),
+                        0, 1, 0,           -K(1, 2),
+                        0, 0, 0,            K(0, 0),
+                        0, 0, 1./norm(tvec), 0), false).convertTo(_Q, CV_64F);
+        }
+        else
+        {
+            CV_Assert(Q.size() == Size(4,4));
+            _Q = Q.getMat();
+        }
+        cv::reprojectImageTo3D(disparity, _3dImage, _Q, handleMissingValues, ddepth);
+    } else {
+        CV_Assert(rectificationType == omnidir::RECTIFY_LONGLATI);
+        CV_Assert(T.total() * T.channels() == 3 && (T.depth() == CV_32F || T.depth() == CV_64F));
+        CV_Assert((P.size() == Size(3, 3) || P.size() == Size(4, 3)) && (P.depth() == CV_64F || P.depth() == CV_32F));
+
+        CV_Assert(!disparity.empty());
+        Mat _disparity = disparity.getMat();
+        int dispType = disparity.type();
+        CV_Assert( dispType == CV_8UC1 || dispType == CV_16SC1 ||
+                   dispType == CV_32SC1 || dispType == CV_32FC1 );
+
+        if (ddepth >= 0)
+            ddepth = CV_MAKETYPE(CV_MAT_DEPTH(ddepth), 3);
+
+        if (_3dImage.fixedType()) {
+            int dType = _3dImage.type();
+            CV_Assert(ddepth == -1 || ddepth == dType);
+            ddepth = dType;
+        }
+
+        if (ddepth < 0)
+            ddepth = CV_32FC3;
+        else
+            CV_Assert(
+                    ddepth == CV_16SC3 || ddepth == CV_32SC3 || ddepth == CV_32FC3);
+
+        _3dImage.create(_disparity.size(), ddepth);
+
+        Mat output3dMat = _3dImage.getMat();
+
+        const float bigZ = 10000.f;
+
+        int i, cols = _disparity.cols;
+        CV_Assert(cols >= 0);
+
+        std::vector<float> sbuf(cols);
+        std::vector<Vec3f> dbuf(cols);
+
+        float* sbufPtr = &sbuf[0];
+        Vec3f* dbufPtr = &dbuf[0];
+        double minDisparity = FLT_MAX;
+
+        // NOTE: here we quietly assume that at least one pixel in the disparity map is not defined.
+        // and we set the corresponding Z's to some fixed big value.
+        if (handleMissingValues)
+            cv::minMaxIdx( disparity, &minDisparity, 0, 0, 0 );
+
+        Matx33d K, Kinv;
+        P.getMat().colRange(0, 3).convertTo(K, CV_64F);
+        Kinv = K.inv();
+
+        Vec3d _T;
+        T.getMat().convertTo(_T, CV_64F);
+
+        double baseline = norm(_T);
+        double f = K(0, 0);
+
+        for (int j = 0; j < _disparity.rows; j++) {
+            float* sptr = sbufPtr;
+            Vec3f* dptr = dbufPtr;
+
+            if (dispType == CV_8UC1) {
+                const uchar* sptr0 = _disparity.ptr<uchar>(j);
+                for (i = 0; i < cols; i++)
+                    sptr[i] = (float)sptr0[i];
+            } else if (dispType == CV_16SC1) {
+                const short* sptr0 = _disparity.ptr<short>(j);
+                for (i = 0; i < cols; i++)
+                    sptr[i] = (float)sptr0[i];
+            } else if (dispType == CV_32SC1) {
+                const int* sptr0 = _disparity.ptr<int>(j);
+                for (i = 0; i < cols; i++)
+                    sptr[i] = (float)sptr0[i];
+            } else
+                sptr = _disparity.ptr<float>(j);
+
+            if (ddepth == CV_32FC3)
+                dptr = output3dMat.ptr<Vec3f>(j);
+
+            for (i = 0; i < cols; i++) {
+                double depth = baseline * f / sptr[i];
+                // for RECTIFY_LONGLATI, (x,y) are (theta, phi) angles
+                float x = float(Kinv(0, 0) * i + Kinv(0, 1) * j + Kinv(0, 2));
+                float y = float(Kinv(1, 0) * i + Kinv(1, 1) * j + Kinv(1, 2));
+                dptr[i] = Vec3f((float)-std::cos(x), (float)(-std::sin(x) * std::cos(y)),
+                        (float)(std::sin(x) * std::sin(y)))
+                    * depth;
+                if (fabs(depth - minDisparity) <= FLT_EPSILON)
+                    dptr[i][2] = bigZ;
+            }
+
+            if (ddepth == CV_16SC3) {
+                Vec3s* dptr0 = output3dMat.ptr<Vec3s>(j);
+                for (i = 0; i < cols; i++) {
+                    dptr0[i] = dptr[i];
+                }
+            } else if (ddepth == CV_32SC3) {
+                Vec3i* dptr0 = output3dMat.ptr<Vec3i>(j);
+                for (i = 0; i < cols; i++) {
+                    dptr0[i] = dptr[i];
+                }
+            }
+        }
+    }
+}
+
 void cv::omnidir::stereoReconstruct(InputArray image1, InputArray image2, InputArray K1, InputArray D1,
     InputArray xi1, InputArray K2, InputArray D2, InputArray xi2, InputArray R, InputArray T, int flag,
     int numDisparities, int SADWindowSize, OutputArray disparity, OutputArray image1Rec, OutputArray image2Rec,
