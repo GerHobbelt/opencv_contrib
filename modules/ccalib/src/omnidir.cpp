@@ -58,6 +58,7 @@
  */
 #include "precomp.hpp"
 #include "opencv2/ccalib/omnidir.hpp"
+#include <opencv2/core/utils/logger.hpp>
 #include <fstream>
 #include <iostream>
 namespace cv { namespace
@@ -1634,7 +1635,7 @@ void cv::omnidir::reprojectImageTo3D( InputArray disparity,
                 dptr[i] = Vec3f((float)-std::cos(x), (float)(-std::sin(x) * std::cos(y)),
                         (float)(std::sin(x) * std::sin(y)))
                     * depth;
-                if (fabs(depth - minDisparity) <= FLT_EPSILON)
+                if (fabs(sptr[i] - minDisparity) <= FLT_EPSILON)
                     dptr[i][2] = bigZ;
             }
 
