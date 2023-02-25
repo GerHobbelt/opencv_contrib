@@ -215,7 +215,7 @@ void VideoWriterImpl::Init(const Codec codec, const double fps, const Size frame
     catch (cv::Exception& e)
     {
         String msg = String("Error initializing Nvidia Encoder. Refer to Nvidia's GPU Support Matrix to confirm your GPU supports hardware encoding, ") +
-            String("codec and surface format and check the encoder documentation to verify your choice of encoding paramaters are supported.") +
+            String("codec and surface format and check the encoder documentation to verify your choice of encoding parameters are supported.") +
             e.msg;
         CV_Error(Error::GpuApiCallError, msg);
     }
