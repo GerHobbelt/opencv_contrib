@@ -54,7 +54,7 @@ namespace omnidir
     //! @{
 
     enum {
-        CALIB_USE_GUESS             = 1,
+        CALIB_USE_GUESS             = 1, // currently not used
         CALIB_FIX_SKEW              = 2,
         CALIB_FIX_K1                = 4,
         CALIB_FIX_K2                = 8,
