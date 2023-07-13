@@ -1070,11 +1070,13 @@ void cv::omnidir::estimateNewCameraMatrixForUndistortRectify(InputArray K, Input
     CV_Assert(K.size() == Size(3, 3) && (K.depth() == CV_32F || K.depth() == CV_64F));
     CV_Assert(D.empty() || ((D.total() == 4) && (D.depth() == CV_32F || D.depth() == CV_64F)));
     CV_Assert(xi.total() == 1 && (xi.depth() == CV_64F || xi.depth() == CV_32F));
+    CV_Assert(rectificationType == RECTIFY_PERSPECTIVE || rectificationType == RECTIFY_LONGLATI);
 
     int w = imageSize.width, h = imageSize.height;
 
     if (rectificationType == cv::omnidir::RECTIFY_PERSPECTIVE) {
         double balance = std::min(std::max(scale0, 0.0), 1.0);
+
         cv::Mat points(1, 4, CV_64FC2);
         Vec2d* pptr = points.ptr<Vec2d>();
         pptr[0] = Vec2d(w / 2, 0);
@@ -1085,12 +1087,12 @@ void cv::omnidir::estimateNewCameraMatrixForUndistortRectify(InputArray K, Input
         cv::omnidir::undistortPoints(points, points, K, D, xi, R);
         cv::Scalar center_mass = mean(points);
         cv::Vec2d cn(center_mass.val);
+
         double aspect_ratio = (K.depth() == CV_32F) ? K.getMat().at<float>(0, 0) / K.getMat().at<float>(1, 1)
             : K.getMat().at<double>(0, 0) / K.getMat().at<double>(1, 1);
 
         // convert to identity ratio
         cn[1] *= aspect_ratio;
-
         for (size_t i = 0; i < points.total(); ++i)
             pptr[i][1] *= aspect_ratio;
 
@@ -1134,10 +1136,10 @@ void cv::omnidir::estimateNewCameraMatrixForUndistortRectify(InputArray K, Input
     } else {
         cv::Mat points(1, 4, CV_64FC2);
         Vec2d* pptr = points.ptr<Vec2d>();
-        pptr[0] = Vec2d(0, h / 2);
+        pptr[0] = Vec2d(w / 2, 0);
         pptr[1] = Vec2d(w, h / 2);
-        pptr[2] = Vec2d(w / 2, 0);
-        pptr[3] = Vec2d(w / 2, h);
+        pptr[2] = Vec2d(w / 2, h);
+        pptr[3] = Vec2d(0, h / 2);
 
         cv::omnidir::undistortPoints(points, points, K, D, xi, R);
 
@@ -1156,30 +1158,64 @@ void cv::omnidir::estimateNewCameraMatrixForUndistortRectify(InputArray K, Input
             maxx = std::max(maxx, pptr[i][0]);
         }
 
+        // According to camera model, undistorted image plane is 1 away from camera origin. => 2D points on image plane
+        // can be extended to 3D using z=1.
         // assume y is 0.0
-        double r = sqrt(minx * minx + 1.0);
-        Vec3d pt_unit_x_min = {minx/r, 0.0, 1.0/r};
-        r = sqrt(maxx * maxx + 1.0);
-        Vec3d pt_unit_x_max = {maxx/r, 0.0, 1.0/r};
+        // calculate normalized vector to min x point
+        Vec3d pt_x_min = {minx, 0.0, 1.0};
+        pt_x_min = pt_x_min/cv::norm(pt_x_min);
+        // calculate normalized vector to max x point
+        Vec3d pt_x_max = {maxx, 0.0, 1.0};
+        pt_x_max = pt_x_max/cv::norm(pt_x_max);
+
         // assume x is 0.0
-        r = sqrt(miny * miny + 1.0);
-        Vec3d pt_unit_y_min = {0.0, miny/r, 1.0/r};
-        r = sqrt(maxy * maxy + 1.0);
-        Vec3d pt_unit_y_max = {0.0, maxy/r, 1.0/r};
+        // calculate normalized vector to min y point
+        Vec3d pt_y_min = {0.0, miny, 1.0};
+        pt_y_min = pt_y_min/cv::norm(pt_y_min);
+        // calculate normalized vector to max y point
+        Vec3d pt_y_max = {0.0, maxy, 1.0};
+        pt_y_max = pt_y_max/cv::norm(pt_y_max);
 
         // Set image center to x=0, y=0.
-        Vec3d cn_unit_x(0.0, 0.0, 1.0);
-        Vec3d cn_unit_y = cn_unit_x;
+        Vec3d pt_x_cn = {0.0, 0.0, 1.0};
+        Vec3d pt_y_cn = {0.0, 0.0, 1.0};
 
-        cv::Vec2d fov;
-        // length of vectors are all 1.0 (unit circle) -> no normalization necessary
-        fov[0] = acos(pt_unit_x_min.dot(pt_unit_x_max));
-        fov[1] = acos(pt_unit_y_min.dot(pt_unit_y_max));
+        // Calculate fovs for different points
+        cv::Vec2d fov, fov_min, fov_max;
+
+        // length of vectors are all 1.0 -> no normalization necessary
+        fov_min[0] = acos(pt_x_min.dot(pt_x_cn));
+        fov_max[0] = acos(pt_x_max.dot(pt_x_cn));
+        fov_min[1] = acos(pt_y_min.dot(pt_y_cn));
+        fov_max[1] = acos(pt_y_max.dot(pt_y_cn));
+
+        // use maximum fov, required in case of rotations so that image is properly projected
+        fov[0] = std::max(fov_min[0], fov_max[0]) * 2.0;
+        fov[1] = std::max(fov_min[1], fov_max[1]) * 2.0;
+
+        /* // possible version using balance to scale between min and max fov */
+        /* double balance = 2.0 * std::min(std::max(scale0, 0.0), 1.0); */
+        /* fov[0] = balance * fov_min[0] + (2.0 - balance) * fov_max[0]; */
+        /* fov[1] = balance * fov_min[1] + (2.0 - balance) * fov_max[1]; */
+        /* std::cout << "balance: " << balance << std::endl; */
+        /* std::cout << "fov: " << fov << std::endl; */
+
+        // set fov using fov to minimum and maximum points
+        /* fov = fov_min + fov_max; */
+        /* std::cout << "fov: " << fov << std::endl; */
+        /* fov[0] = fov_min[0] + fov_max[0]; */
+        /* fov[1] = fov_min[1] + fov_max[1]; */
+        /* std::cout << "fov_min: " << fov_min << std::endl; */
+        /* std::cout << "fov_max: " << fov_max << std::endl; */
+        /* std::cout << "fov: " << fov << std::endl; */
 
         cv::Vec2d cn_fov;
-        // length of vectors are all 1.0 (unit circle) -> no normalization necessary
-        cn_fov[0] = acos(cn_unit_x.dot(pt_unit_x_min));
-        cn_fov[1] = acos(cn_unit_y.dot(pt_unit_y_min));
+        // length of vectors are all 1.0 -> no normalization necessary
+        cn_fov[0] = acos(pt_x_cn.dot(fov_min[0] >= fov_max[0] ? pt_x_min : pt_x_max));
+        cn_fov[1] = acos(pt_y_cn.dot(fov_min[1] >= fov_max[1] ? pt_y_min : pt_y_max));
+
+        /* cn_fov[0] = acos(pt_x_cn.dot(pt_x_min)); */
+        /* cn_fov[1] = acos(pt_y_cn.dot(pt_y_min)); */
 
         Vec2d fov_scale(scale0 > 0.0 ? scale0 : 1.0, scale1 > 0.0 ? scale1 : 1.0);
         fov = fov.mul(fov_scale);
