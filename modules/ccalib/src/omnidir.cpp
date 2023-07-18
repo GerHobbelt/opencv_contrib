@@ -1176,46 +1176,28 @@ void cv::omnidir::estimateNewCameraMatrixForUndistortRectify(InputArray K, Input
         Vec3d pt_y_max = {0.0, maxy, 1.0};
         pt_y_max = pt_y_max/cv::norm(pt_y_max);
 
-        // Set image center to x=0, y=0.
+        // Set image center to x=0, y=0
         Vec3d pt_x_cn = {0.0, 0.0, 1.0};
         Vec3d pt_y_cn = {0.0, 0.0, 1.0};
+
+        /* cv::Scalar center_mass = mean(points); */
+        /* Vec3d pt_x_cn = {center_mass[0], 0.0, 1.0}; */
+        /* pt_x_cn = pt_x_cn/cv::norm(pt_x_cn); */
+        /* Vec3d pt_y_cn = {0.0, center_mass[1], 1.0}; */
+        /* pt_y_cn = pt_y_cn/cv::norm(pt_y_cn); */
 
         // Calculate fovs for different points
         cv::Vec2d fov, fov_min, fov_max;
 
         // length of vectors are all 1.0 -> no normalization necessary
-        fov_min[0] = acos(pt_x_min.dot(pt_x_cn));
-        fov_max[0] = acos(pt_x_max.dot(pt_x_cn));
-        fov_min[1] = acos(pt_y_min.dot(pt_y_cn));
-        fov_max[1] = acos(pt_y_max.dot(pt_y_cn));
-
-        // use maximum fov, required in case of rotations so that image is properly projected
-        fov[0] = std::max(fov_min[0], fov_max[0]) * 2.0;
-        fov[1] = std::max(fov_min[1], fov_max[1]) * 2.0;
-
-        /* // possible version using balance to scale between min and max fov */
-        /* double balance = 2.0 * std::min(std::max(scale0, 0.0), 1.0); */
-        /* fov[0] = balance * fov_min[0] + (2.0 - balance) * fov_max[0]; */
-        /* fov[1] = balance * fov_min[1] + (2.0 - balance) * fov_max[1]; */
-        /* std::cout << "balance: " << balance << std::endl; */
+        fov[0] = acos(pt_x_min.dot(pt_x_max));
+        fov[1] = acos(pt_y_min.dot(pt_y_max));
         /* std::cout << "fov: " << fov << std::endl; */
 
-        // set fov using fov to minimum and maximum points
-        /* fov = fov_min + fov_max; */
-        /* std::cout << "fov: " << fov << std::endl; */
-        /* fov[0] = fov_min[0] + fov_max[0]; */
-        /* fov[1] = fov_min[1] + fov_max[1]; */
-        /* std::cout << "fov_min: " << fov_min << std::endl; */
-        /* std::cout << "fov_max: " << fov_max << std::endl; */
-        /* std::cout << "fov: " << fov << std::endl; */
-
+        // Calculate fov to center point
         cv::Vec2d cn_fov;
-        // length of vectors are all 1.0 -> no normalization necessary
-        cn_fov[0] = acos(pt_x_cn.dot(fov_min[0] >= fov_max[0] ? pt_x_min : pt_x_max));
-        cn_fov[1] = acos(pt_y_cn.dot(fov_min[1] >= fov_max[1] ? pt_y_min : pt_y_max));
-
-        /* cn_fov[0] = acos(pt_x_cn.dot(pt_x_min)); */
-        /* cn_fov[1] = acos(pt_y_cn.dot(pt_y_min)); */
+        cn_fov[0] = acos(pt_x_cn.dot(pt_x_min));
+        cn_fov[1] = acos(pt_y_cn.dot(pt_y_min));
 
         Vec2d fov_scale(scale0 > 0.0 ? scale0 : 1.0, scale1 > 0.0 ? scale1 : 1.0);
         fov = fov.mul(fov_scale);
@@ -1228,7 +1210,9 @@ void cv::omnidir::estimateNewCameraMatrixForUndistortRectify(InputArray K, Input
 
         cv::Vec2d pix_per_rad = {w/fov[0], h/fov[1]};
 
-        cv::Vec2d offset = (cv::Vec2d::all(CV_PI * 0.5) - cn_fov).mul(pix_per_rad);
+        // for longitude latitude projection, the image spans from -pi to pi => offset is calculated as difference of
+        // fov from left image border to image center (cn_fov) and pi.
+        cv::Vec2d offset = (cv::Vec2d::all(CV_PI * 0.5)-cn_fov).mul(pix_per_rad);
 
         Mat(Matx33d(pix_per_rad[0], 0, -offset[0], 0, pix_per_rad[1], -offset[1], 0, 0, 1))
             .convertTo(P, P.empty() ? K.type() : P.type());
