@@ -322,6 +322,7 @@ void cv::omnidir::undistortPoints( InputArray distorted, OutputArray undistorted
         double b = 2*_xi*r2;
         double cc = r2*_xi*_xi-1;
         double Zs = (-b + sqrt(b*b - 4*a*cc))/(2*a);
+        /* double Zs = (_xi + sqrt(1+(1-(_xi * _xi))*r2)) / (r2 + 1) - _xi; // same as line above (given like that in paper)*/
         Vec3d Xw = Vec3d(pu[0]*(Zs + _xi), pu[1]*(Zs +_xi), Zs);
 
         // rotate
@@ -1074,17 +1075,52 @@ void cv::omnidir::estimateNewCameraMatrixForUndistortRectify(InputArray K, Input
 
     int w = imageSize.width, h = imageSize.height;
 
+    cv::Mat points(1, 4, CV_64FC2);
+    cv::Mat tmpPts(1, 4, CV_64FC2);
+
+    Vec2d* pptr = points.ptr<Vec2d>();
+    pptr[0] = Vec2d(w / 2, 0);
+    pptr[1] = Vec2d(w, h / 2);
+    pptr[2] = Vec2d(w / 2, h);
+    pptr[3] = Vec2d(0, h / 2);
+
+    double* tmppptr = tmpPts.ptr<double>();
+    double wstep = std::ceil(w * 0.001);
+    double hstep = std::ceil(h * 0.001);
+    /* std::cout << "wstep: " << wstep << std::endl; */
+    /* std::cout << "hstep: " << hstep << std::endl; */
+    int count = 0;
+    bool nan = false;
+
+    while (count * wstep < w * 0.5 && count * hstep < h * 0.5) {
+        std::cout << count << ": " << count * wstep << ", "  << count * hstep << std::endl;
+        cv::omnidir::undistortPoints(points, tmpPts, K, D, xi, R);
+
+        nan = false;
+        for(auto i=0; i < 8; ++i) {
+            if (cvIsNaN(tmppptr[i])) {
+                nan = true;
+                break;
+            }
+        }
+        if (!nan) {
+            break;
+        }
+        pptr[0] += Vec2d(0, hstep);
+        pptr[1] -= Vec2d(wstep, 0);
+        pptr[2] -= Vec2d(0, hstep);
+        pptr[3] += Vec2d(wstep, 0);
+        count++;
+    }
+    if (nan) {
+        CV_Error(cv::Error::StsError, "Estimation of undistorted camera matrix failed, undistortion of support points fails.");
+    }
+
+    tmpPts.copyTo(points);
+
     if (rectificationType == cv::omnidir::RECTIFY_PERSPECTIVE) {
         double balance = std::min(std::max(scale0, 0.0), 1.0);
 
-        cv::Mat points(1, 4, CV_64FC2);
-        Vec2d* pptr = points.ptr<Vec2d>();
-        pptr[0] = Vec2d(w / 2, 0);
-        pptr[1] = Vec2d(w, h / 2);
-        pptr[2] = Vec2d(w / 2, h);
-        pptr[3] = Vec2d(0, h / 2);
-
-        cv::omnidir::undistortPoints(points, points, K, D, xi, R);
         cv::Scalar center_mass = mean(points);
         cv::Vec2d cn(center_mass.val);
 
@@ -1134,15 +1170,6 @@ void cv::omnidir::estimateNewCameraMatrixForUndistortRectify(InputArray K, Input
         Mat(Matx33d(new_f[0], 0, new_c[0], 0, new_f[1], new_c[1], 0, 0, 1))
             .convertTo(P, P.empty() ? K.type() : P.type());
     } else {
-        cv::Mat points(1, 4, CV_64FC2);
-        Vec2d* pptr = points.ptr<Vec2d>();
-        pptr[0] = Vec2d(w / 2, 0);
-        pptr[1] = Vec2d(w, h / 2);
-        pptr[2] = Vec2d(w / 2, h);
-        pptr[3] = Vec2d(0, h / 2);
-
-        cv::omnidir::undistortPoints(points, points, K, D, xi, R);
-
         double aspect_ratio = (K.depth() == CV_32F) ? K.getMat().at<float>(0, 0) / K.getMat().at<float>(1, 1)
             : K.getMat().at<double>(0, 0) / K.getMat().at<double>(1, 1);
 
