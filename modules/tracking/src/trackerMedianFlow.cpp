@@ -312,7 +312,7 @@ Rect2d TrackerMedianFlowImpl::vote(const std::vector<Point2f>& oldPoints,const s
     for(size_t i=0;i<n;i++){  buf_for_location[i]=newPoints[i].y-oldPoints[i].y;  }
     yshift=tracking_internal::getMedianAndDoPartition(buf_for_location);
     newCenter.y+=yshift;
-    mD=Point2f((float)xshift,(float)yshift);
+    mD=Point2f(xshift, yshift);
 
     std::vector<double> buf_for_scale(n*(n-1)/2, 0.0);
     for(size_t i=0,ctr=0;i<n;i++){
