@@ -440,11 +440,11 @@ void cv::omnidir::initUndistortRectifyMap(InputArray K, InputArray D, InputArray
 
                 if( m1type == CV_16SC2 )
                 {
-                    int iu = cv::saturate_cast<int>(u*cv::INTER_TAB_SIZE);
-                    int iv = cv::saturate_cast<int>(v*cv::INTER_TAB_SIZE);
+                    int iu = cv::saturate_cast<int>(u * (int)cv::INTER_TAB_SIZE);
+                    int iv = cv::saturate_cast<int>(v * (int)cv::INTER_TAB_SIZE);
                     m1[j*2+0] = (short)(iu >> cv::INTER_BITS);
                     m1[j*2+1] = (short)(iv >> cv::INTER_BITS);
-                    m2[j] = (ushort)((iv & (cv::INTER_TAB_SIZE-1))*cv::INTER_TAB_SIZE + (iu & (cv::INTER_TAB_SIZE-1)));
+                    m2[j] = (ushort)((iv & (cv::INTER_TAB_SIZE-1)) * (int)cv::INTER_TAB_SIZE + (iu & (cv::INTER_TAB_SIZE-1)));
                 }
                 else if( m1type == CV_32FC1 )
                 {
@@ -518,11 +518,11 @@ void cv::omnidir::initUndistortRectifyMap(InputArray K, InputArray D, InputArray
 
                 if( m1type == CV_16SC2 )
                 {
-                    int iu = cv::saturate_cast<int>(u*cv::INTER_TAB_SIZE);
-                    int iv = cv::saturate_cast<int>(v*cv::INTER_TAB_SIZE);
+                    int iu = cv::saturate_cast<int>(u * (int)cv::INTER_TAB_SIZE);
+                    int iv = cv::saturate_cast<int>(v * (int)cv::INTER_TAB_SIZE);
                     m1[j*2+0] = (short)(iu >> cv::INTER_BITS);
                     m1[j*2+1] = (short)(iv >> cv::INTER_BITS);
-                    m2[j] = (ushort)((iv & (cv::INTER_TAB_SIZE-1))*cv::INTER_TAB_SIZE + (iu & (cv::INTER_TAB_SIZE-1)));
+                    m2[j] = (ushort)((iv & (cv::INTER_TAB_SIZE-1)) * (int)cv::INTER_TAB_SIZE + (iu & (cv::INTER_TAB_SIZE-1)));
                 }
                 else if( m1type == CV_32FC1 )
                 {
