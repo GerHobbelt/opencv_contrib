@@ -197,7 +197,7 @@ __global__ void stereo_match(const PtrStepSz<float> left,
     }
 }
 
-// TODO@LiuYunhuang: 增加水平条纹y轴方向支持
+// TODO@LiuYunhuang: support for y axis stripe
 void stereoMatch(const GpuMat &left, const GpuMat &right,
                  const StereoMatchParams &params, GpuMat &dispMap,
                  Stream &stream = Stream::Null()) {

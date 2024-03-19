@@ -379,24 +379,24 @@ void SinusCompleGrayCodePattern_Impl::computeDisparity(
                         minCost = curCost;
                         bestDisp = d;
                     }
+                }
 
-                    if (minCost < params.maxCost) {
-                        if (bestDisp == params.minDisparity ||
-                            bestDisp == params.maxDisparity) {
-                            disparityPtr[j] = bestDisp;
-                            continue;
-                        }
-
-                        const float preCost = std::abs(
-                            leftVal - rightUnwrapPtr[j - (bestDisp - 1)]);
-                        const float nextCost = std::abs(
-                            leftVal - rightUnwrapPtr[j - (bestDisp + 1)]);
-                        const float denom =
-                            std::max(1.f, preCost + nextCost - 2 * minCost);
-
-                        disparityPtr[j] =
-                            bestDisp + (preCost - nextCost) / (denom * 2.f);
+                if (minCost < params.maxCost) {
+                    if (bestDisp == params.minDisparity ||
+                        bestDisp == params.maxDisparity) {
+                        disparityPtr[j] = bestDisp;
+                        continue;
                     }
+
+                    const float preCost =
+                        std::abs(leftVal - rightUnwrapPtr[j - (bestDisp - 1)]);
+                    const float nextCost =
+                        std::abs(leftVal - rightUnwrapPtr[j - (bestDisp + 1)]);
+                    const float denom =
+                        std::max(1.f, preCost + nextCost - 2 * minCost);
+
+                    disparityPtr[j] =
+                        bestDisp + (preCost - nextCost) / (denom * 2.f);
                 }
             }
         }
