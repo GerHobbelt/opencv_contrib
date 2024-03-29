@@ -4,8 +4,10 @@
 
 #include <iostream>
 #include <vector>
-#include <opencv2/calib3d.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/3d.hpp>
+#include <opencv2/calib.hpp>
+#include <opencv2/aruco/charuco.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/objdetect.hpp>
 #include "aruco_samples_utility.hpp"

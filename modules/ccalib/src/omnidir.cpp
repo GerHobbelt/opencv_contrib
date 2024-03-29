@@ -58,6 +58,7 @@
  */
 #include "precomp.hpp"
 #include "opencv2/ccalib/omnidir.hpp"
+#include "opencv2/stereo.hpp"
 #include <opencv2/core/utils/logger.hpp>
 #include <fstream>
 #include <iostream>

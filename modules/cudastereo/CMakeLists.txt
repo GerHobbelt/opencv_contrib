@@ -8,4 +8,4 @@ ocv_warnings_disable(CMAKE_CXX_FLAGS /wd4127 /wd4324 /wd4512 -Wundef -Wmissing-d
 if(ENABLE_CUDA_FIRST_CLASS_LANGUAGE)
   ocv_module_include_directories(${CUDAToolkit_INCLUDE_DIRS})
 endif()
-ocv_define_module(cudastereo opencv_calib3d OPTIONAL opencv_cudev WRAP python)
+ocv_define_module(cudastereo opencv_3d opencv_stereo OPTIONAL opencv_cudev WRAP python)

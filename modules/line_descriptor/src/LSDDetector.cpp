@@ -218,8 +218,8 @@ void LSDDetector::detectImpl( const Mat& imageSrc, std::vector<KeyLine>& keyline
       }
     }
   }
-
 }
+
 }
 }
 

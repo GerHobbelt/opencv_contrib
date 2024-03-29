@@ -6,6 +6,7 @@
 #include <opencv2/calib3d.hpp>
 #include "opencv2/aruco/charuco.hpp"
 #include <opencv2/imgproc.hpp>
+#include <opencv2/calib.hpp>
 
 namespace cv {
 namespace aruco {

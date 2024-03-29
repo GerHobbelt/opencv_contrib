@@ -345,69 +345,29 @@ namespace
 
 namespace
 {
-    void seqToContours(CvSeq* _ccontours, CvMemStorage* storage, OutputArrayOfArrays _contours)
-    {
-        Seq<CvSeq*> all_contours(cvTreeToNodeSeq(_ccontours, sizeof(CvSeq), storage));
-
-        size_t total = all_contours.size();
-
-        _contours.create((int) total, 1, 0, -1, true);
-
-        SeqIterator<CvSeq*> it = all_contours.begin();
-        for (size_t i = 0; i < total; ++i, ++it)
-        {
-            CvSeq* c = *it;
-            ((CvContour*)c)->color = (int)i;
-            _contours.create((int)c->total, 1, CV_32SC2, (int)i, true);
-            Mat ci = _contours.getMat((int)i);
-            CV_Assert( ci.isContinuous() );
-            cvCvtSeqToArray(c, ci.data);
-        }
-    }
-
     int findForegroundRegions(GpuMat& d_foreground, Mat& h_foreground, std::vector< std::vector<Point> >& foreground_regions,
-                              CvMemStorage* storage, const FGDParams& params)
+                              const FGDParams& params)
     {
         int region_count = 0;
 
         // Discard under-size foreground regions:
-
         d_foreground.download(h_foreground);
-        IplImage ipl_foreground = cvIplImage(h_foreground);
-        CvSeq* first_seq = 0;
 
-        cvFindContours(&ipl_foreground, storage, &first_seq, sizeof(CvContour), CV_RETR_LIST);
+        std::vector<std::vector<cv::Point> > contours, result;
+        std::vector<cv::Vec4i> hierarchy;
+        cv::findContours(h_foreground, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_SIMPLE);
+        CV_Assert(contours.size() > 0);
 
-        for (CvSeq* seq = first_seq; seq; seq = seq->h_next)
+        // adding top-level contours to results, filtering by size
+        for (size_t i = 0; i < contours.size(); ++i)
         {
-            CvContour* cnt = reinterpret_cast<CvContour*>(seq);
-
-            if (cnt->rect.width * cnt->rect.height < params.minArea || (params.is_obj_without_holes && CV_IS_SEQ_HOLE(seq)))
-            {
-                // Delete under-size contour:
-                CvSeq* prev_seq = seq->h_prev;
-                if (prev_seq)
-                {
-                    prev_seq->h_next = seq->h_next;
-
-                    if (seq->h_next)
-                        seq->h_next->h_prev = prev_seq;
-                }
-                else
-                {
-                    first_seq = seq->h_next;
-
-                    if (seq->h_next)
-                        seq->h_next->h_prev = NULL;
-                }
-            }
-            else
-            {
-                region_count++;
-            }
+            const std::vector<cv::Point> & cnt = contours[i];
+            const cv::Rect brect = cv::boundingRect(cnt);
+            bool isHole = hierarchy[i][3] >= 0; // contour with parent is hole
+            if (brect.area() < params.minArea || (isHole && params.is_obj_without_holes))
+                continue;
+            foreground_regions.push_back(cnt);
         }
-
-        seqToContours(first_seq, storage, foreground_regions);
         h_foreground.setTo(0);
 
         drawContours(h_foreground, foreground_regions, -1, Scalar::all(255), -1);
@@ -612,19 +572,14 @@ namespace
         Ptr<cuda::Filter> dilateFilter_;
         Ptr<cuda::Filter> erodeFilter_;
 #endif
-
-        CvMemStorage* storage_;
     };
 
     FGDImpl::FGDImpl(const FGDParams& params) : params_(params), frameSize_(0, 0)
     {
-        storage_ = cvCreateMemStorage();
-        CV_Assert( storage_ != 0 );
     }
 
     FGDImpl::~FGDImpl()
     {
-        cvReleaseMemStorage(&storage_);
     }
 
     void FGDImpl::apply(InputArray _frame, OutputArray fgmask, double)
@@ -640,7 +595,6 @@ namespace
         CV_Assert( curFrame.type() == CV_8UC3 || curFrame.type() == CV_8UC4 );
         CV_Assert( curFrame.size() == prevFrame_.size() );
 
-        cvClearMemStorage(storage_);
         foreground_regions_.clear();
         foreground_.setTo(Scalar::all(0));
 
@@ -655,7 +609,7 @@ namespace
 #endif
 
         if (params_.minArea > 0 || params_.is_obj_without_holes)
-            findForegroundRegions(foreground_, h_foreground_, foreground_regions_, storage_, params_);
+            findForegroundRegions(foreground_, h_foreground_, foreground_regions_, params_);
 
         // Check ALL BG update condition:
         const double BGFG_FGD_BG_UPDATE_TRESH = 0.5;
