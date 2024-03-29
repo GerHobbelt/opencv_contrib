@@ -26,7 +26,7 @@ Scalar QualityMAE::compute(InputArray ref, InputArray cmp, OutputArray qualityMa
 {
     CV_Assert_3(ref.channels() <= 4,
                 cmp.channels() <= 4,
-                (statsProc == MAE_Max) || (statsProc == MAE_Mean) );
+                (statsProc == MAE_MAX) || (statsProc == MAE_MEAN) );
 
     _mat_type err;
     int wdepth = std::max(std::max(ref.depth(), cmp.depth()), CV_32F);
@@ -36,9 +36,9 @@ Scalar QualityMAE::compute(InputArray ref, InputArray cmp, OutputArray qualityMa
     absdiff(extract_mat<_mat_type>(ref, wtype), extract_mat<_mat_type>(cmp, wtype), err);
 
     if(qualityMap.needed())
-        qualityMap.assign(statsProc == MAE_Max ? err : err.clone());
+        qualityMap.assign(statsProc == MAE_MAX ? err : err.clone());
 
-    if(statsProc == MAE_Mean)
+    if(statsProc == MAE_MEAN)
     {
         return mean(err);
     }
@@ -64,9 +64,13 @@ Scalar QualityMAE::compute( InputArray cmpImg )
     // If the input is a set of images.
     _mat_type cmp = extract_mat<_mat_type>(cmpImg, std::max(cmpImg.depth(), CV_32F));
 
-    return QualityMAE::compute(this->_ref, cmp, this->_qualityMap, this->_flags);
+    return QualityMAE::compute(this->_ref, cmp, this->_qualityMap, this->_flag);
 }
 
+QualityMAE::QualityMAE(QualityBase::_mat_type ref, int flag)
+    : _ref(std::move(ref)),
+      _flag(flag)
+{}
 
 } // quality
 
