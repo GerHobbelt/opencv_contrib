@@ -214,4 +214,61 @@ TEST(CV_ArucoTutorial, can_find_diamondmarkers)
     EXPECT_EQ(counterGoldCornersIds, counterRes); // check the number of ArUco markers
 }
 
+TEST(CV_ArucoTutorial, can_refine_detected_markers)
+{
+    string imgPath = cvtest::findDataFile("diamondmarkers.png");
+    Mat image = imread(imgPath);
+
+    string dictPath = cvtest::findDataFile("tutorial_dict.yml");
+    aruco::Dictionary dictionary;
+    FileStorage fs(dictPath, FileStorage::READ);
+    dictionary.aruco::Dictionary::readDictionary(fs.root()); // set marker from tutorial_dict.yml
+
+    string detectorPath = cvtest::findDataFile("detector_params.yml");
+    fs = FileStorage(detectorPath, FileStorage::READ);
+    aruco::DetectorParameters detectorParams;
+    detectorParams.readDetectorParameters(fs.root());
+    detectorParams.cornerRefinementMethod = aruco::CORNER_REFINE_APRILTAG;
+
+    aruco::ArucoDetector detector(dictionary, detectorParams);
+
+    vector< int > ids;
+    vector< vector< Point2f > > corners, rejected;
+    const size_t N = 12ull;
+    // corner indices of ArUco markers
+    const int goldCornersIds[N] = { 4, 12, 11, 3, 12, 10, 12, 10, 10, 11, 2, 11 };
+    map<int, int> counterGoldCornersIds;
+    for (int i = 0; i < static_cast<int>(N); i++)
+        counterGoldCornersIds[goldCornersIds[i]]++;
+
+    detector.detectMarkers(image, corners, ids, rejected);
+#if 0
+    Mat camMatrix, distCoeffs;
+    // create charuco board object
+    Ptr<aruco::CharucoBoard> charucoboard = new aruco::CharucoBoard(Size(5, 5),
+      detectorParams.minSideLengthCanonicalImg, markerLength, dictionary);
+    Ptr<aruco::Board> board = charucoboard.staticCast<aruco::Board>();
+
+    // refine strategy CORNER_REFINE_APRILTAG to detect more markers
+    aruco::refineDetectedMarkers(image, board, corners, ids, rejected, camMatrix, distCoeffs);
+    //TODO TEST
+    ASSERT_TRUE(corners.size() > 20);
+
+    vector< int > markerIds, charucoIds;
+    vector< vector< Point2f > > charucoCorners;
+    Vec3d rvec, tvec;
+    // interpolate charuco corners
+    int interpolatedCorners =
+        aruco::interpolateCornersCharuco(corners, ids, image, charucoboard,
+                                         charucoCorners, charucoIds, camMatrix, distCoeffs);
+    //TODO TEST
+    ASSERT_TRUE(interpolatedCorners > 20);
+
+    // estimate charuco board pose
+    bool validPose = aruco::estimatePoseCharucoBoard(charucoCorners, charucoIds, charucoboard,
+                                                     camMatrix, distCoeffs, rvec, tvec);
+    ASSERT_TRUE(validPose);
+#endif
+}
+
 }} // namespace
