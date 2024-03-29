@@ -1,44 +1,5 @@
-/*
-By downloading, copying, installing or using the software you agree to this
-license. If you do not agree to this license, do not download, install,
-copy or use the software.
-
-                          License Agreement
-               For Open Source Computer Vision Library
-                       (3-clause BSD License)
-
-Copyright (C) 2013, OpenCV Foundation, all rights reserved.
-Third party copyrights are property of their respective owners.
-
-Redistribution and use in source and binary forms, with or without modification,
-are permitted provided that the following conditions are met:
-
-  * Redistributions of source code must retain the above copyright notice,
-    this list of conditions and the following disclaimer.
-
-  * Redistributions in binary form must reproduce the above copyright notice,
-    this list of conditions and the following disclaimer in the documentation
-    and/or other materials provided with the distribution.
-
-  * Neither the names of the copyright holders nor the names of the contributors
-    may be used to endorse or promote products derived from this software
-    without specific prior written permission.
-
-This software is provided by the copyright holders and contributors "as is" and
-any express or implied warranties, including, but not limited to, the implied
-warranties of merchantability and fitness for a particular purpose are
-disclaimed. In no event shall copyright holders or contributors be liable for
-any direct, indirect, incidental, special, exemplary, or consequential damages
-(including, but not limited to, procurement of substitute goods or services;
-loss of use, data, or profits; or business interruption) however caused
-and on any theory of liability, whether in contract, strict liability,
-or tort (including negligence or otherwise) arising in any way out of
-the use of this software, even if advised of the possibility of such damage.
-*/
-
-
 #include <opencv2/highgui.hpp>
-#include <opencv2/aruco/charuco.hpp>
+#include <opencv2/objdetect/charuco_detector.hpp>
 #include <iostream>
 #include "aruco_samples_utility.hpp"
 
@@ -48,11 +9,11 @@ namespace {
 const char* about = "Create a ChArUco board image";
 //! [charuco_detect_board_keys]
 const char* keys  =
-        "{@outfile |<none> | Output image }"
-        "{w        |       | Number of squares in X direction }"
-        "{h        |       | Number of squares in Y direction }"
-        "{sl       |       | Square side length (in pixels) }"
-        "{ml       |       | Marker side length (in pixels) }"
+        "{@outfile |res.png| Output image }"
+        "{w        |  5    | Number of squares in X direction }"
+        "{h        |  7    | Number of squares in Y direction }"
+        "{sl       |  100  | Square side length (in pixels) }"
+        "{ml       |  60   | Marker side length (in pixels) }"
         "{d        |       | dictionary: DICT_4X4_50=0, DICT_4X4_100=1, DICT_4X4_250=2,"
         "DICT_4X4_1000=3, DICT_5X5_50=4, DICT_5X5_100=5, DICT_5X5_250=6, DICT_5X5_1000=7, "
         "DICT_6X6_50=8, DICT_6X6_100=9, DICT_6X6_250=10, DICT_6X6_1000=11, DICT_7X7_50=12,"
@@ -68,10 +29,8 @@ const char* keys  =
 int main(int argc, char *argv[]) {
     CommandLineParser parser(argc, argv, keys);
     parser.about(about);
-
-    if(argc < 7) {
+    if (argc == 1) {
         parser.printMessage();
-        return 0;
     }
 
     int squaresX = parser.get<int>("w");
@@ -86,14 +45,14 @@ int main(int argc, char *argv[]) {
     int borderBits = parser.get<int>("bb");
     bool showImage = parser.get<bool>("si");
 
-    String out = parser.get<String>(0);
+    std::string pathOutImg = parser.get<std::string>(0);
 
     if(!parser.check()) {
         parser.printErrors();
         return 0;
     }
 
-    aruco::Dictionary dictionary = aruco::getPredefinedDictionary(0);
+    aruco::Dictionary dictionary = aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
     if (parser.has("d")) {
         int dictionaryId = parser.get<int>("d");
         dictionary = aruco::getPredefinedDictionary(aruco::PredefinedDictionaryType(dictionaryId));
@@ -107,26 +66,30 @@ int main(int argc, char *argv[]) {
         }
     }
     else {
-        std::cerr << "Dictionary not specified" << std::endl;
-        return 0;
+        std::cout << "The default DICT_4X4_50 dictionary has been selected, you could "
+                     "select the specific dictionary using flags -d or -cd." << std::endl;
     }
 
     Size imageSize;
     imageSize.width = squaresX * squareLength + 2 * margins;
     imageSize.height = squaresY * squareLength + 2 * margins;
 
-    aruco::CharucoBoard board(Size(squaresX, squaresY), (float)squareLength, (float)markerLength, dictionary);
+    //! [create_charucoBoard]
+    cv::aruco::CharucoBoard board(Size(squaresX, squaresY), (float)squareLength, (float)markerLength, dictionary);
+    //! [create_charucoBoard]
 
     // show created board
+    //! [generate_charucoBoard]
     Mat boardImage;
     board.generateImage(imageSize, boardImage, margins, borderBits);
+    //! [generate_charucoBoard]
 
     if(showImage) {
         imshow("board", boardImage);
         waitKey(0);
     }
 
-    imwrite(out, boardImage);
-
+    if (pathOutImg != "")
+        imwrite(pathOutImg, boardImage);
     return 0;
 }

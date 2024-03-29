@@ -22,12 +22,14 @@ The aruco module is based on the original ArUco library. A full description of t
 - My markers are not being detected correctly, what can I do?
 
 There can be many factors that avoid the correct detection of markers. You probably need to adjust some of the parameters
-in the ```DetectorParameters``` object. The first thing you can do is checking if your markers are returned
-as rejected candidates by the ```detectMarkers()``` function. Depending on this, you should try to modify different parameters.
+in the `cv::aruco::DetectorParameters` object. The first thing you can do is checking if your markers are returned
+as rejected candidates by the `cv::aruco::ArucoDetector::detectMarkers()` function. Depending on this, you should try to modify different parameters.
 
-If you are using a ArUco board, you can also try the ```refineDetectedMarkers()``` function.
-If you are [using big markers](https://github.com/opencv/opencv_contrib/issues/2811) (400x400 pixels and more), try increasing ```adaptiveThreshWinSizeMax``` value.
-Also avoid [narrow borders](https://github.com/opencv/opencv_contrib/issues/2492) (5% or less of the marker perimeter, adjusted by ```minMarkerDistanceRate```) around markers.
+If you are using a ArUco board, you can also try the `cv::aruco::ArucoDetector::refineDetectedMarkers()` function.
+If you are [using big markers](https://github.com/opencv/opencv_contrib/issues/2811) (400x400 pixels and more), try
+increasing `cv::aruco::DetectorParameters::adaptiveThreshWinSizeMax` value.
+Also avoid [narrow borders around the ArUco marker](https://github.com/opencv/opencv_contrib/issues/2492)
+(5% or less of the marker perimeter, adjusted by `cv::aruco::DetectorParameters::minMarkerDistanceRate`) around markers.
 
 
 - What are the benefits of ArUco boards? What are the drawbacks?
@@ -64,9 +66,9 @@ No, the marker corners in a ArUco board can be placed anywhere in its 3d coordin
 Yes, all the markers in a ChArUco board need to be in the same plane and their layout is fixed by the chessboard shape.
 
 
-- What is the difference between a ```Board``` object and a ```GridBoard``` object?
+- What is the difference between a `cv::aruco::Board` object and a `cv::aruco::GridBoard` object?
 
-The ```GridBoard``` class is a specific type of board that inherits from ```Board``` class. A ```GridBoard``` object is a board whose markers are placed in the same
+The `cv::aruco::GridBoard` class is a specific type of board that inherits from `cv::aruco::Board` class. A `cv::aruco::GridBoard` object is a board whose markers are placed in the same
 plane and in a grid layout.
 
 
@@ -78,7 +80,7 @@ They are useful when you want to provide a conceptual meaning to any (or all) of
 
 - Do I need to detect marker before board detection, ChArUco board detection or Diamond detection?
 
-Yes, the detection of single markers is a basic tool in the aruco module. It is done using the ```detectMarkers()``` function. The rest of functionalities receives
+Yes, the detection of single markers is a basic tool in the aruco module. It is done using the `cv::aruco::DetectorParameters::detectMarkers()` function. The rest of functionalities receives
 a list of detected markers from this function.
 
 
@@ -103,12 +105,12 @@ correction during the identification step.
 Dictionary generation should only be done once at the beginning of your application and it should take some seconds. If you are
 generating the dictionary on each iteration of your detection loop, you are doing it wrong.
 
-Furthermore, it is recommendable to save the dictionary to a file with ```cv::aruco::Dictionary::writeDictionary()``` and read it with ```cv::aruco::Dictionary::readDictionary()``` on every execution, so you don't need to generate it.
+Furthermore, it is recommendable to save the dictionary to a file with `cv::aruco::Dictionary::writeDictionary()` and read it with `cv::aruco::Dictionary::readDictionary()` on every execution, so you don't need to generate it.
 
 
 - I would like to use some markers of the original ArUco library that I have already printed, can I use them?
 
-Yes, one of the predefined dictionary is ```DICT_ARUCO_ORIGINAL```, which detects the marker of the original ArUco library with the same identifiers.
+Yes, one of the predefined dictionary is `cv::aruco::DICT_ARUCO_ORIGINAL`, which detects the marker of the original ArUco library with the same identifiers.
 
 
 - Can I use the Board configuration file of the original ArUco library in this module?
@@ -128,12 +130,13 @@ If you are using one of the predefined dictionaries, it is not necessary. Otherw
 
 - Do I need to store the Board information in a file so I can use it in different executions?
 
-If you are using a ```GridBoard``` or a ```ChArUco``` board you only need to store the board measurements that are provided to the ```GridBoard::create()``` function or in or `ChArUco` constructor.
+If you are using a `cv::aruco::GridBoard` or a `cv::aruco::CharucoBoard` you only need to store the board measurements
+that are provided to the `cv::aruco::GridBoard::GridBoard()` constructor or in or `cv::aruco::CharucoBoard` constructor.
 If you manually modify the marker ids of the boards, or if you use a different type of board, you should save your board object to file.
 
 - Does the aruco module provide functions to save the Dictionary or Board to file?
 
-You can use ```cv::aruco::Dictionary::writeDictionary()``` and ```cv::aruco::Dictionary::readDictionary()``` for ```cv::aruco::Dictionary```. The data member of board classes are public and can be easily stored.
+You can use `cv::aruco::Dictionary::writeDictionary()` and `cv::aruco::Dictionary::readDictionary()` for `cv::aruco::Dictionary`. The data member of board classes are public and can be easily stored.
 
 
 - Alright, but how can I render a 3d model to create an augmented reality application?
@@ -158,5 +161,5 @@ It is important to remark that the estimation of the pose using only 4 coplanar 
 In general, the ambiguity can be solved, if the camera is near to the marker.
 However, as the marker becomes small, the errors in the corner estimation grows and ambiguity comes as a problem.
 Try increasing the size of the marker you're using, and you can also try non-symmetrical (aruco_dict_utils.cpp) markers to avoid collisions.
-Use multiple markers (ArUco/ChArUco/Diamonds boards) and pose estimation with solvePnP() with the ```SOLVEPNP_IPPE_SQUARE``` option.
+Use multiple markers (ArUco/ChArUco/Diamonds boards) and pose estimation with solvePnP() with the `cv::SOLVEPNP_IPPE_SQUARE` option.
 More in [this issue](https://github.com/opencv/opencv/issues/8813).
