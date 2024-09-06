@@ -5,7 +5,7 @@
 #ifndef _OPENCV_OR_VECTOR_HPP_
 #define _OPENCV_OR_VECTOR_HPP_
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__MUSACC__)
 #define __CV_CUDA_HOST_DEVICE__ __host__ __device__ __forceinline__
 #else
 #define __CV_CUDA_HOST_DEVICE__

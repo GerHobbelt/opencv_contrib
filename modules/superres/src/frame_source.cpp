@@ -43,6 +43,7 @@
 
 using namespace cv;
 using namespace cv::cuda;
+using namespace cv::musa;
 using namespace cv::superres;
 using namespace cv::superres::detail;
 
@@ -117,6 +118,11 @@ namespace
         if (_frame.kind() == _InputArray::MAT)
             vc_ >> _frame.getMatRef();
         else if(_frame.kind() == _InputArray::CUDA_GPU_MAT)
+        {
+            vc_ >> frame_;
+            arrCopy(frame_, _frame);
+        }
+        else if(_frame.kind() == _InputArray::MUSA_GPU_MAT)
         {
             vc_ >> frame_;
             arrCopy(frame_, _frame);
@@ -253,3 +259,69 @@ Ptr<FrameSource> cv::superres::createFrameSource_Video_CUDA(const String& fileNa
 }
 
 #endif // HAVE_OPENCV_CUDACODEC
+
+//////////////////////////////////////////////////////
+// VideoFrameSource_MUSA
+
+#ifndef HAVE_OPENCV_MUSACODEC
+
+Ptr<FrameSource> cv::superres::createFrameSource_Video_MUSA(const String& fileName)
+{
+    CV_UNUSED(fileName);
+    CV_Error(cv::Error::StsNotImplemented, "The called functionality is disabled for current build or platform");
+}
+
+#else // HAVE_OPENCV_MUSACODEC
+
+namespace
+{
+    class VideoFrameSource_MUSA : public FrameSource
+    {
+    public:
+        VideoFrameSource_MUSA(const String& fileName);
+
+        void nextFrame(OutputArray frame);
+        void reset();
+
+    private:
+        String fileName_;
+        Ptr<musacodec::VideoReader> reader_;
+        GpuMat frame_;
+    };
+
+    VideoFrameSource_MUSA::VideoFrameSource_MUSA(const String& fileName) : fileName_(fileName)
+    {
+        reset();
+    }
+
+    void VideoFrameSource_MUSA::nextFrame(OutputArray _frame)
+    {
+        if (_frame.kind() == _InputArray::MUSA_GPU_MAT)
+        {
+            bool res = reader_->nextFrame(_frame.getGpuMatRef());
+            if (!res)
+                _frame.release();
+        }
+        else
+        {
+            bool res = reader_->nextFrame(frame_);
+            if (!res)
+                _frame.release();
+            else
+                arrCopy(frame_, _frame);
+        }
+    }
+
+    void VideoFrameSource_MUSA::reset()
+    {
+        reader_ = musacodec::createVideoReader(fileName_);
+    }
+}
+
+Ptr<FrameSource> cv::superres::createFrameSource_Video_MUSA(const String& fileName)
+{
+    return makePtr<VideoFrameSource_MUSA>(fileName);
+}
+
+#endif // HAVE_OPENCV_MUSACODEC
+

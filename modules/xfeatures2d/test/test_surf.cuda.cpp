@@ -41,6 +41,7 @@
 //M*/
 
 #include "test_precomp.hpp"
+#include "opencv2/ts/cuda_test.hpp"
 
 #if defined(HAVE_CUDA) && defined(OPENCV_ENABLE_NONFREE)
 

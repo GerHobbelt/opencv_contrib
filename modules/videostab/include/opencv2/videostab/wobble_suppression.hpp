@@ -46,6 +46,7 @@
 #include <vector>
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
+#include "opencv2/core/musa.hpp"
 #include "opencv2/videostab/global_motion.hpp"
 #include "opencv2/videostab/log.hpp"
 
@@ -129,6 +130,19 @@ public:
 private:
     cuda::GpuMat frameDevice_, resultDevice_;
     cuda::GpuMat mapx_, mapy_;
+};
+#endif
+
+#if defined(HAVE_OPENCV_MUSAWARPING)
+class CV_EXPORTS MoreAccurateMotionWobbleSuppressorGpu : public MoreAccurateMotionWobbleSuppressorBase
+{
+public:
+    void suppress(int idx, const musa::GpuMat &frame, musa::GpuMat &result);
+    virtual void suppress(int idx, const Mat &frame, Mat &result) CV_OVERRIDE;
+
+private:
+    musa::GpuMat frameDevice_, resultDevice_;
+    musa::GpuMat mapx_, mapy_;
 };
 #endif
 

@@ -95,6 +95,7 @@ namespace cv
         };
         CV_EXPORTS Ptr<FarnebackOpticalFlow> createOptFlow_Farneback();
         CV_EXPORTS Ptr<FarnebackOpticalFlow> createOptFlow_Farneback_CUDA();
+        CV_EXPORTS Ptr<FarnebackOpticalFlow> createOptFlow_Farneback_MUSA();
 
 
 //        CV_EXPORTS Ptr<DenseOpticalFlowExt> createOptFlow_Simple();
@@ -138,6 +139,7 @@ namespace cv
         };
         CV_EXPORTS Ptr<DualTVL1OpticalFlow> createOptFlow_DualTVL1();
         CV_EXPORTS Ptr<DualTVL1OpticalFlow> createOptFlow_DualTVL1_CUDA();
+        CV_EXPORTS Ptr<DualTVL1OpticalFlow> createOptFlow_DualTVL1_MUSA();
 
 
         class CV_EXPORTS BroxOpticalFlow : public virtual DenseOpticalFlowExt
@@ -175,6 +177,7 @@ namespace cv
             virtual void setSolverIterations(int val) = 0;
         };
         CV_EXPORTS Ptr<BroxOpticalFlow> createOptFlow_Brox_CUDA();
+        CV_EXPORTS Ptr<BroxOpticalFlow> createOptFlow_Brox_MUSA();
 
 
         class PyrLKOpticalFlow : public virtual DenseOpticalFlowExt
@@ -194,6 +197,7 @@ namespace cv
             virtual void setIterations(int val) = 0;
         };
         CV_EXPORTS Ptr<PyrLKOpticalFlow> createOptFlow_PyrLK_CUDA();
+        CV_EXPORTS Ptr<PyrLKOpticalFlow> createOptFlow_PyrLK_MUSA();
 
 //! @}
 

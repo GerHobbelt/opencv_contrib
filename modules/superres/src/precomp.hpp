@@ -49,6 +49,7 @@
 #include "opencv2/opencv_modules.hpp"
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
+#include "opencv2/core/musa.hpp"
 #include "opencv2/core/opengl.hpp"
 #include "opencv2/core/utility.hpp"
 #include "opencv2/imgproc.hpp"
@@ -56,6 +57,7 @@
 #include "opencv2/core/private.hpp"
 
 #include "opencv2/core/private.cuda.hpp"
+#include "opencv2/core/private.musa.hpp"
 #include "opencv2/core/ocl.hpp"
 
 #ifdef HAVE_OPENCV_CUDAARITHM
@@ -80,6 +82,30 @@
 
 #ifdef HAVE_OPENCV_CUDACODEC
 #  include "opencv2/cudacodec.hpp"
+#endif
+
+#ifdef HAVE_OPENCV_MUSAARITHM
+#  include "opencv2/musaarithm.hpp"
+#endif
+
+#ifdef HAVE_OPENCV_MUSAWARPING
+#  include "opencv2/musawarping.hpp"
+#endif
+
+#ifdef HAVE_OPENCV_MUSAFILTERS
+#  include "opencv2/musafilters.hpp"
+#endif
+
+#ifdef HAVE_OPENCV_MUSAIMGPROC
+#  include "opencv2/musaimgproc.hpp"
+#endif
+
+#ifdef HAVE_OPENCV_MUSAOPTFLOW
+#  include "opencv2/musaoptflow.hpp"
+#endif
+
+#ifdef HAVE_OPENCV_MUSACODEC
+#  include "opencv2/musacodec.hpp"
 #endif
 
 #ifdef HAVE_OPENCV_VIDEOIO

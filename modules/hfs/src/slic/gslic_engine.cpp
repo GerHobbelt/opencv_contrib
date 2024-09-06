@@ -61,3 +61,63 @@ const Ptr<IntImage> CoreEngine::getSegRes()
 }}}}
 
 #endif
+
+
+#ifdef _HFS_MUSA_ON_
+
+#include "slic.hpp"
+
+namespace cv { namespace hfs { namespace slic { namespace engines {
+
+SegEngine::SegEngine(const slicSettings& in_settings)
+{
+    slic_settings = in_settings;
+}
+
+SegEngine::~SegEngine() {}
+
+void SegEngine::performSegmentation(Ptr<UChar4Image> in_img)
+{
+    source_img->setFrom(in_img, UChar4Image::CPU_TO_MUSA);
+    cvtImgSpace(source_img, cvt_img);
+
+    initClusterCenters();
+    findCenterAssociation();
+
+    for (int i = 0; i < slic_settings.num_iters; i++)
+    {
+        updateClusterCenter();
+        findCenterAssociation();
+    }
+
+    enforceConnectivity();
+    musaDeviceSynchronize();
+}
+
+
+CoreEngine::CoreEngine(const slicSettings& in_settings)
+{
+    slic_seg_engine = Ptr<SegEngine>(new SegEngineGPU(in_settings));
+}
+
+CoreEngine::~CoreEngine() {}
+
+void CoreEngine::setImageSize(int x, int y)
+{
+    slic_seg_engine->setImageSize(x, y);
+}
+
+void CoreEngine::processFrame(Ptr<UChar4Image> in_img)
+{
+    slic_seg_engine->performSegmentation(in_img);
+}
+
+const Ptr<IntImage> CoreEngine::getSegRes()
+{
+    return slic_seg_engine->getSegMask();
+}
+
+
+}}}}
+
+#endif

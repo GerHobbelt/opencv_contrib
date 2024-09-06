@@ -56,6 +56,10 @@
 #  include "opencv2/cudaimgproc.hpp"
 #endif
 
+#ifdef HAVE_OPENCV_MUSAIMGPROC
+#  include "opencv2/musaimgproc.hpp"
+#endif
+
 namespace cv
 {
 namespace videostab
@@ -293,6 +297,39 @@ private:
 };
 
 #endif // defined(HAVE_OPENCV_CUDAIMGPROC) && defined(HAVE_OPENCV_CUDAOPTFLOW)
+
+#if defined(HAVE_OPENCV_MUSAIMGPROC) && defined(HAVE_OPENCV_MUSAOPTFLOW)
+
+class CV_EXPORTS KeypointBasedMotionEstimatorGpu : public ImageMotionEstimatorBase
+{
+public:
+    KeypointBasedMotionEstimatorGpu(Ptr<MotionEstimatorBase> estimator);
+
+    virtual void setMotionModel(MotionModel val) CV_OVERRIDE { motionEstimator_->setMotionModel(val); }
+    virtual MotionModel motionModel() const CV_OVERRIDE { return motionEstimator_->motionModel(); }
+
+    void setOutlierRejector(Ptr<IOutlierRejector> val) { outlierRejector_ = val; }
+    Ptr<IOutlierRejector> outlierRejector() const { return outlierRejector_; }
+
+    virtual Mat estimate(const Mat &frame0, const Mat &frame1, bool *ok = 0) CV_OVERRIDE;
+    Mat estimate(const musa::GpuMat &frame0, const musa::GpuMat &frame1, bool *ok = 0);
+
+private:
+    Ptr<MotionEstimatorBase> motionEstimator_;
+    Ptr<musa::CornersDetector> detector_;
+    SparsePyrLkOptFlowEstimatorGpu optFlowEstimator_;
+    Ptr<IOutlierRejector> outlierRejector_;
+
+    musa::GpuMat frame0_, grayFrame0_, frame1_;
+    musa::GpuMat pointsPrev_, points_;
+    musa::GpuMat status_;
+
+    Mat hostPointsPrev_, hostPoints_;
+    std::vector<Point2f> hostPointsPrevTmp_, hostPointsTmp_;
+    std::vector<uchar> rejectionStatus_;
+};
+
+#endif // defined(HAVE_OPENCV_MUSAIMGPROC) && defined(HAVE_OPENCV_MUSAOPTFLOW)
 
 /** @brief Computes motion between two frames assuming that all the intermediate motions are known.
 

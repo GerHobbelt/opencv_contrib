@@ -67,11 +67,25 @@ void HfsCore::constructEngine()
     out_img = Ptr<UChar4Image>(
         new UChar4Image(hfsSettings.slicSettings.img_size));
 #endif
+
+#ifdef _HFS_MUSA_ON_
+    gslic_engine = Ptr<slic::engines::CoreEngine>(
+        new slic::engines::CoreEngine(hfsSettings.slicSettings));
+    in_img = Ptr<UChar4Image>(
+        new UChar4Image(hfsSettings.slicSettings.img_size));
+    out_img = Ptr<UChar4Image>(
+        new UChar4Image(hfsSettings.slicSettings.img_size));
+#endif
 }
 
 void HfsCore::reconstructEngine()
 {
 #ifdef _HFS_CUDA_ON_
+    gslic_engine = Ptr<slic::engines::CoreEngine>(
+        new slic::engines::CoreEngine(hfsSettings.slicSettings));
+#endif
+
+#ifdef _HFS_MUSA_ON_
     gslic_engine = Ptr<slic::engines::CoreEngine>(
         new slic::engines::CoreEngine(hfsSettings.slicSettings));
 #endif
@@ -454,7 +468,21 @@ int HfsCore::processImageCpu(const Mat &img3u, Mat &seg)
 
 int HfsCore::processImageGpu(const Mat &img3u, Mat &seg)
 {
-#ifdef _HFS_CUDA_ON_
+#if defined(_HFS_CUDA_ON_)
+    Mat idx_mat, lab3u, mag1u, tmp;
+    int num_css;
+
+    idx_mat = getSLICIdxGpu(img3u, num_css);
+    cv::cvtColor(img3u, lab3u, COLOR_BGR2Lab);
+
+    mag_engine->processImgGpu(img3u, mag1u);
+
+    getSegmentationI(lab3u, mag1u, idx_mat,
+        hfsSettings.egbThresholdI, hfsSettings.minRegionSizeI, tmp, num_css);
+    getSegmentationII(lab3u, mag1u, tmp,
+        hfsSettings.egbThresholdII, hfsSettings.minRegionSizeII, seg, num_css);
+    return num_css;
+#elif defined(_HFS_MUSA_ON_)
     Mat idx_mat, lab3u, mag1u, tmp;
     int num_css;
 
@@ -474,6 +502,37 @@ int HfsCore::processImageGpu(const Mat &img3u, Mat &seg)
 }
 
 #ifdef _HFS_CUDA_ON_
+Mat HfsCore::getSLICIdxGpu(const Mat& img3u, int &num_css)
+{
+    const int _h = img3u.rows;
+    const int _w = img3u.cols;
+    const int _s = _h*_w;
+
+    loadImage(img3u, in_img);
+    gslic_engine->setImageSize(img3u.cols, img3u.rows);
+
+    gslic_engine->processFrame(in_img);
+    const IntImage *idx_img = gslic_engine->getSegRes();
+    int* idx_img_ptr = (int*)idx_img->getCpuData();
+
+    num_css = 0;
+    int _max =
+        (int)ceil((float)_w / 8.0f)*(int)ceil((float)_h / 8.0f);
+    vector<int> indexes(_max, 0);
+    for (int i = 0; i < _s; i++)
+        indexes[idx_img_ptr[i]]++;
+    for (int i = 0; i < _max; i++)
+        indexes[i] = (indexes[i] != 0) ? num_css++ : 0;
+    for (int i = 0; i < _s; i++)
+        idx_img_ptr[i] = indexes[idx_img_ptr[i]];
+    Mat idx_mat(_h, _w, CV_32S, idx_img_ptr);
+    idx_mat.convertTo(idx_mat, CV_16U);
+    return idx_mat;
+}
+
+#endif
+
+#ifdef _HFS_MUSA_ON_
 Mat HfsCore::getSLICIdxGpu(const Mat& img3u, int &num_css)
 {
     const int _h = img3u.rows;

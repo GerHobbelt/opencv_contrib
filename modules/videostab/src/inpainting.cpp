@@ -330,13 +330,13 @@ public:
 #endif
 MotionInpainter::MotionInpainter()
 {
-#ifdef HAVE_OPENCV_CUDAOPTFLOW
+#if defined(HAVE_OPENCV_CUDAOPTFLOW) || defined(HAVE_OPENCV_MUSAOPTFLOW)
     setOptFlowEstimator(makePtr<DensePyrLkOptFlowEstimatorGpu>());
     setFlowErrorThreshold(1e-4f);
     setDistThreshold(5.f);
     setBorderMode(BORDER_REPLICATE);
 #else
-    CV_Error(Error::StsNotImplemented, "Current implementation of MotionInpainter requires CUDA");
+    CV_Error(Error::StsNotImplemented, "Current implementation of MotionInpainter requires CUDA/MUSA");
 #endif
 }
 

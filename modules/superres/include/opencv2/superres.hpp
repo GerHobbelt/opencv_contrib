@@ -76,6 +76,7 @@ namespace cv
 
         CV_EXPORTS Ptr<FrameSource> createFrameSource_Video(const String& fileName);
         CV_EXPORTS Ptr<FrameSource> createFrameSource_Video_CUDA(const String& fileName);
+        CV_EXPORTS Ptr<FrameSource> createFrameSource_Video_MUSA(const String& fileName);
 
         CV_EXPORTS Ptr<FrameSource> createFrameSource_Camera(int deviceId = 0);
 
@@ -198,6 +199,7 @@ namespace cv
          */
         CV_EXPORTS Ptr<SuperResolution> createSuperResolution_BTVL1();
         CV_EXPORTS Ptr<SuperResolution> createSuperResolution_BTVL1_CUDA();
+        CV_EXPORTS Ptr<SuperResolution> createSuperResolution_BTVL1_MUSA();
 
 //! @} superres
 

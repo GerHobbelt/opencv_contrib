@@ -61,7 +61,7 @@ public:
     std::vector<int> generate_superpixels(cv::Mat image, int spixel_size_, float spatial_weight_);
 };
 
-#ifdef _HFS_CUDA_ON_
+#if defined(_HFS_CUDA_ON_) || defined(_HFS_MUSA_ON_)
 
 // utils used only by GPU version of slic
 struct gSpixelInfo

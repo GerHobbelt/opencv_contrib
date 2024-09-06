@@ -48,6 +48,7 @@
 #include "clp.hpp"
 
 #include "opencv2/core/private.cuda.hpp"
+#include "opencv2/core/private.musa.hpp"
 
 #if defined(HAVE_OPENCV_CUDAIMGPROC) && defined(HAVE_OPENCV_CUDAOPTFLOW)
     #if !defined HAVE_CUDA || defined(CUDA_DISABLER)
@@ -67,6 +68,33 @@
 
                 int npoints = points0.cols;
                 int remaining = cv::cuda::device::globmotion::compactPoints(
+                        npoints, (float*)points0.data, (float*)points1.data, mask.data);
+
+                points0 = points0.colRange(0, remaining);
+                points1 = points1.colRange(0, remaining);
+            }
+        }}
+    #endif
+#endif
+
+#if defined(HAVE_OPENCV_MUSAIMGPROC) && defined(HAVE_OPENCV_MUSAOPTFLOW)
+    #if !defined HAVE_MUSA || defined(MUSA_DISABLER)
+        namespace cv { namespace musa {
+            static void compactPoints(GpuMat&, GpuMat&, const GpuMat&) { throw_no_musa(); }
+        }}
+    #else
+        namespace cv { namespace musa { namespace device { namespace globmotion {
+            int compactPoints(int N, float *points0, float *points1, const uchar *mask);
+        }}}}
+        namespace cv { namespace musa {
+            static void compactPoints(GpuMat &points0, GpuMat &points1, const GpuMat &mask)
+            {
+                CV_Assert(points0.rows == 1 && points1.rows == 1 && mask.rows == 1);
+                CV_Assert(points0.type() == CV_32FC2 && points1.type() == CV_32FC2 && mask.type() == CV_8U);
+                CV_Assert(points0.cols == mask.cols && points1.cols == mask.cols);
+
+                int npoints = points0.cols;
+                int remaining = cv::musa::device::globmotion::compactPoints(
                         npoints, (float*)points0.data, (float*)points1.data, mask.data);
 
                 points0 = points0.colRange(0, remaining);
@@ -858,6 +886,83 @@ Mat KeypointBasedMotionEstimatorGpu::estimate(const cuda::GpuMat &frame0, const 
 
 #endif // defined(HAVE_OPENCV_CUDAIMGPROC) && defined(HAVE_OPENCV_CUDAOPTFLOW)
 
+
+#if defined(HAVE_OPENCV_MUSAIMGPROC) && defined(HAVE_OPENCV_MUSAOPTFLOW)
+
+KeypointBasedMotionEstimatorGpu::KeypointBasedMotionEstimatorGpu(Ptr<MotionEstimatorBase> estimator)
+    : ImageMotionEstimatorBase(estimator->motionModel()), motionEstimator_(estimator)
+{
+    detector_ = musa::createGoodFeaturesToTrackDetector(CV_8UC1);
+
+    CV_Assert(musa::getMusaEnabledDeviceCount() > 0);
+    setOutlierRejector(makePtr<NullOutlierRejector>());
+}
+
+
+Mat KeypointBasedMotionEstimatorGpu::estimate(const Mat &frame0, const Mat &frame1, bool *ok)
+{
+    frame0_.upload(frame0);
+    frame1_.upload(frame1);
+    return estimate(frame0_, frame1_, ok);
+}
+
+
+Mat KeypointBasedMotionEstimatorGpu::estimate(const musa::GpuMat &frame0, const musa::GpuMat &frame1, bool *ok)
+{
+    // convert frame to gray if it's color
+
+    musa::GpuMat grayFrame0;
+    if (frame0.channels() == 1)
+        grayFrame0 = frame0;
+    else
+    {
+        musa::cvtColor(frame0, grayFrame0_, COLOR_BGR2GRAY);
+        grayFrame0 = grayFrame0_;
+    }
+
+    // find keypoints
+    detector_->detect(grayFrame0, pointsPrev_);
+
+    // find correspondences
+    optFlowEstimator_.run(frame0, frame1, pointsPrev_, points_, status_);
+
+    // leave good correspondences only
+    musa::compactPoints(pointsPrev_, points_, status_);
+
+    pointsPrev_.download(hostPointsPrev_);
+    points_.download(hostPoints_);
+
+    // perform outlier rejection
+
+    IOutlierRejector *rejector = outlierRejector_.get();
+    if (!dynamic_cast<NullOutlierRejector*>(rejector))
+    {
+        outlierRejector_->process(frame0.size(), hostPointsPrev_, hostPoints_, rejectionStatus_);
+
+        hostPointsPrevTmp_.clear();
+        hostPointsPrevTmp_.reserve(hostPoints_.cols);
+
+        hostPointsTmp_.clear();
+        hostPointsTmp_.reserve(hostPoints_.cols);
+
+        for (int i = 0; i < hostPoints_.cols; ++i)
+        {
+            if (rejectionStatus_[i])
+            {
+                hostPointsPrevTmp_.push_back(hostPointsPrev_.at<Point2f>(0,i));
+                hostPointsTmp_.push_back(hostPoints_.at<Point2f>(0,i));
+            }
+        }
+
+        hostPointsPrev_ = Mat(1, (int)hostPointsPrevTmp_.size(), CV_32FC2, &hostPointsPrevTmp_[0]);
+        hostPoints_ = Mat(1, (int)hostPointsTmp_.size(), CV_32FC2, &hostPointsTmp_[0]);
+    }
+
+    // estimate motion
+    return motionEstimator_->estimate(hostPointsPrev_, hostPoints_, ok);
+}
+
+#endif // defined(HAVE_OPENCV_MUSAIMGPROC) && defined(HAVE_OPENCV_MUSAOPTFLOW)
 
 Mat getMotion(int from, int to, const std::vector<Mat> &motions)
 {

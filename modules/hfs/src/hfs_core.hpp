@@ -79,6 +79,14 @@ private:
     cv::Ptr<slic::engines::CoreEngine> gslic_engine;
 #endif
 
+#ifdef _HFS_MUSA_ON_
+public:
+    cv::Mat getSLICIdxGpu(const cv::Mat& img3u, int &num_css);
+private:
+    cv::Ptr<UChar4Image> in_img, out_img;
+    cv::Ptr<slic::engines::CoreEngine> gslic_engine;
+#endif
+
 };
 
 }}

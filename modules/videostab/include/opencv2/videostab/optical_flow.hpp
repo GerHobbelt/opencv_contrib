@@ -50,6 +50,10 @@
   #include "opencv2/cudaoptflow.hpp"
 #endif
 
+#ifdef HAVE_OPENCV_MUSAOPTFLOW
+  #include "opencv2/musaoptflow.hpp"
+#endif
+
 namespace cv
 {
 namespace videostab
@@ -138,6 +142,46 @@ public:
 private:
     Ptr<cuda::DensePyrLKOpticalFlow> optFlowEstimator_;
     cuda::GpuMat frame0_, frame1_, flowX_, flowY_, errors_;
+};
+
+#endif
+
+#ifdef HAVE_OPENCV_MUSAOPTFLOW
+
+class CV_EXPORTS SparsePyrLkOptFlowEstimatorGpu
+        : public PyrLkOptFlowEstimatorBase, public ISparseOptFlowEstimator
+{
+public:
+    SparsePyrLkOptFlowEstimatorGpu();
+
+    virtual void run(
+            InputArray frame0, InputArray frame1, InputArray points0, InputOutputArray points1,
+            OutputArray status, OutputArray errors) CV_OVERRIDE;
+
+    void run(const musa::GpuMat &frame0, const musa::GpuMat &frame1, const musa::GpuMat &points0, musa::GpuMat &points1,
+             musa::GpuMat &status, musa::GpuMat &errors);
+
+    void run(const musa::GpuMat &frame0, const musa::GpuMat &frame1, const musa::GpuMat &points0, musa::GpuMat &points1,
+             musa::GpuMat &status);
+
+private:
+    Ptr<musa::SparsePyrLKOpticalFlow> optFlowEstimator_;
+    musa::GpuMat frame0_, frame1_, points0_, points1_, status_, errors_;
+};
+
+class CV_EXPORTS DensePyrLkOptFlowEstimatorGpu
+        : public PyrLkOptFlowEstimatorBase, public IDenseOptFlowEstimator
+{
+public:
+    DensePyrLkOptFlowEstimatorGpu();
+
+    virtual void run(
+            InputArray frame0, InputArray frame1, InputOutputArray flowX, InputOutputArray flowY,
+            OutputArray errors) CV_OVERRIDE;
+
+private:
+    Ptr<musa::DensePyrLKOpticalFlow> optFlowEstimator_;
+    musa::GpuMat frame0_, frame1_, flowX_, flowY_, errors_;
 };
 
 #endif

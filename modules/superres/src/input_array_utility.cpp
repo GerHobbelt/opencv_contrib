@@ -43,7 +43,6 @@
 #include "precomp.hpp"
 
 using namespace cv;
-using namespace cv::cuda;
 
 Mat cv::superres::arrGetMat(InputArray arr, Mat& buf)
 {
@@ -51,6 +50,10 @@ Mat cv::superres::arrGetMat(InputArray arr, Mat& buf)
     {
     case _InputArray::CUDA_GPU_MAT:
         arr.getGpuMat().download(buf);
+        return buf;
+
+    case _InputArray::MUSA_GPU_MAT:
+        arr.getMUSAGpuMat().download(buf);
         return buf;
 
     case _InputArray::OPENGL_BUFFER:
@@ -70,6 +73,10 @@ UMat cv::superres::arrGetUMat(InputArray arr, UMat& buf)
         arr.getGpuMat().download(buf);
         return buf;
 
+    case _InputArray::MUSA_GPU_MAT:
+        arr.getMUSAGpuMat().download(buf);
+        return buf;
+
     case _InputArray::OPENGL_BUFFER:
         arr.getOGlBuffer().copyTo(buf);
         return buf;
@@ -79,12 +86,29 @@ UMat cv::superres::arrGetUMat(InputArray arr, UMat& buf)
     }
 }
 
-GpuMat cv::superres::arrGetGpuMat(InputArray arr, GpuMat& buf)
+cuda::GpuMat cv::superres::arrGetGpuMat(InputArray arr, cuda::GpuMat& buf)
 {
     switch (arr.kind())
     {
     case _InputArray::CUDA_GPU_MAT:
         return arr.getGpuMat();
+
+    case _InputArray::OPENGL_BUFFER:
+        arr.getOGlBuffer().copyTo(buf);
+        return buf;
+
+    default:
+        buf.upload(arr.getMat());
+        return buf;
+    }
+}
+
+musa::GpuMat cv::superres::arrGetGpuMat(InputArray arr, musa::GpuMat& buf)
+{
+    switch (arr.kind())
+    {
+    case _InputArray::MUSA_GPU_MAT:
+        return arr.getMUSAGpuMat();
 
     case _InputArray::OPENGL_BUFFER:
         arr.getOGlBuffer().copyTo(buf);
@@ -116,10 +140,17 @@ namespace
     }
     void gpu2mat(InputArray src, OutputArray dst)
     {
-        GpuMat d = src.getGpuMat();
-        dst.create(d.size(), d.type());
-        Mat m = dst.getMat();
-        d.download(m);
+        if (_InputArray::MUSA_GPU_MAT) {
+            musa::GpuMat d = src.getMUSAGpuMat();
+            dst.create(d.size(), d.type());
+            Mat m = dst.getMat();
+            d.download(m);
+        } else {
+            cuda::GpuMat d = src.getGpuMat();
+            dst.create(d.size(), d.type());
+            Mat m = dst.getMat();
+            d.download(m);
+        }
     }
     void gpu2gpu(InputArray src, OutputArray dst)
     {
@@ -192,6 +223,14 @@ namespace
             #endif
             break;
 
+        case _InputArray::MUSA_GPU_MAT:
+            #ifdef HAVE_OPENCV_MUSAIMGPROC
+                musa::cvtColor(src.getMUSAGpuMat(), dst.getMUSAGpuMatRef(), code, cn);
+            #else
+                CV_Error(cv::Error::StsNotImplemented, "The called functionality is disabled for current build or platform");
+            #endif
+            break;
+
         default:
             cv::cvtColor(src, dst, code, cn);
             break;
@@ -221,6 +260,10 @@ namespace
         {
         case _InputArray::CUDA_GPU_MAT:
             src.getGpuMat().convertTo(dst.getGpuMatRef(), depth, scale);
+            break;
+
+        case _InputArray::MUSA_GPU_MAT:
+            src.getMUSAGpuMat().convertTo(dst.getMUSAGpuMatRef(), depth, scale);
             break;
 
         case _InputArray::UMAT:
@@ -288,7 +331,32 @@ UMat cv::superres::convertToType(const UMat& src, int type, UMat& buf0, UMat& bu
     return buf1;
 }
 
-GpuMat cv::superres::convertToType(const GpuMat& src, int type, GpuMat& buf0, GpuMat& buf1)
+cuda::GpuMat cv::superres::convertToType(const cuda::GpuMat& src, int type, cuda::GpuMat& buf0, cuda::GpuMat& buf1)
+{
+    if (src.type() == type)
+        return src;
+
+    const int depth = CV_MAT_DEPTH(type);
+    const int cn = CV_MAT_CN(type);
+
+    if (src.depth() == depth)
+    {
+        convertToCn(src, buf0, cn);
+        return buf0;
+    }
+
+    if (src.channels() == cn)
+    {
+        convertToDepth(src, buf1, depth);
+        return buf1;
+    }
+
+    convertToCn(src, buf0, cn);
+    convertToDepth(buf0, buf1, depth);
+    return buf1;
+}
+
+musa::GpuMat cv::superres::convertToType(const musa::GpuMat& src, int type, musa::GpuMat& buf0, musa::GpuMat& buf1)
 {
     if (src.type() == type)
         return src;

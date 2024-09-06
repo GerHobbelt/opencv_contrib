@@ -45,6 +45,7 @@
 
 #include "opencv2/core.hpp"
 #include "opencv2/core/cuda.hpp"
+#include "opencv2/core/musa.hpp"
 
 namespace cv
 {
@@ -53,12 +54,14 @@ namespace cv
         CV_EXPORTS Mat arrGetMat(InputArray arr, Mat& buf);
         CV_EXPORTS UMat arrGetUMat(InputArray arr, UMat& buf);
         CV_EXPORTS cuda::GpuMat arrGetGpuMat(InputArray arr, cuda::GpuMat& buf);
+        CV_EXPORTS musa::GpuMat arrGetGpuMat(InputArray arr, musa::GpuMat& buf);
 
         CV_EXPORTS void arrCopy(InputArray src, OutputArray dst);
 
         CV_EXPORTS Mat convertToType(const Mat& src, int type, Mat& buf0, Mat& buf1);
         CV_EXPORTS UMat convertToType(const UMat& src, int type, UMat& buf0, UMat& buf1);
         CV_EXPORTS cuda::GpuMat convertToType(const cuda::GpuMat& src, int type, cuda::GpuMat& buf0, cuda::GpuMat& buf1);
+        CV_EXPORTS musa::GpuMat convertToType(const musa::GpuMat& src, int type, musa::GpuMat& buf0, musa::GpuMat& buf1);
     }
 }
 

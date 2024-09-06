@@ -5,7 +5,6 @@
 #define __OPENCV_TEST_PRECOMP_HPP__
 
 #include "opencv2/ts.hpp"
-#include "opencv2/ts/cuda_test.hpp"
 #include "opencv2/xfeatures2d.hpp"
 #include "opencv2/calib3d.hpp"
 
@@ -17,6 +16,10 @@
 
 #ifdef HAVE_CUDA
 #  include "opencv2/xfeatures2d/cuda.hpp"
+#endif
+
+#ifdef HAVE_MUSA
+#  include "opencv2/xfeatures2d/musa.hpp"
 #endif
 
 namespace opencv_test {

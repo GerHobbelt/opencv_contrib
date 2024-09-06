@@ -44,6 +44,7 @@
 #define __OPENCV_PRECOMP_H__
 
 #include "opencv2/xfeatures2d/cuda.hpp"
+#include "opencv2/xfeatures2d/musa.hpp"
 
 #include "opencv2/xfeatures2d.hpp"
 #include "opencv2/imgproc.hpp"
@@ -51,12 +52,17 @@
 #include "opencv2/core/utility.hpp"
 #include "opencv2/core/private.hpp"
 #include "opencv2/core/private.cuda.hpp"
+#include "opencv2/core/private.musa.hpp"
 #include "opencv2/core/ocl.hpp"
 
 #include "opencv2/opencv_modules.hpp"
 
 #ifdef HAVE_OPENCV_CUDAARITHM
 #  include "opencv2/cudaarithm.hpp"
+#endif
+
+#ifdef HAVE_OPENCV_MUSAARITHM
+#  include "opencv2/musaarithm.hpp"
 #endif
 
 #include "opencv2/core/private.hpp"

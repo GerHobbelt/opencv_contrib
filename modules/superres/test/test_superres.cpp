@@ -287,6 +287,15 @@ TEST_F(SuperResolution, BTVL1_CUDA)
 
 #endif
 
+#if defined(HAVE_MUSA) && defined(HAVE_OPENCV_MUSAARITHM) && defined(HAVE_OPENCV_MUSAWARPING) && defined(HAVE_OPENCV_MUSAFILTERS)
+
+TEST_F(SuperResolution, BTVL1_MUSA)
+{
+    RunTest<cv::Mat>(cv::superres::createSuperResolution_BTVL1_MUSA());
+}
+
+#endif
+
 } // namespace
 
 #ifdef HAVE_OPENCL
