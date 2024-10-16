@@ -38,7 +38,7 @@ void textbox_draw(Mat src, std::vector<Rect>& groups, std::vector<float>& probs,
         {
             Rect currrentBox = groups[indexes[i]];
             rectangle(src, currrentBox, Scalar( 0, 255, 255 ), 2, LINE_AA);
-            String label = format("%.2f", probs[indexes[i]]);
+            String label = cv::format("%.2f", probs[indexes[i]]);
             std::cout << "text box: " << currrentBox << " confidence: " << probs[indexes[i]] << "\n";
 
             int baseLine = 0;
