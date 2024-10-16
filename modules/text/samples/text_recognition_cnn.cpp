@@ -61,7 +61,7 @@ int main(int argc, const char * argv[])
     if (argc < 2)
     {
         printHelpStr(argv[0]);
-        cout << "Insufiecient parameters. Aborting!" << endl;
+        cout << "Insufficient parameters. Aborting!" << endl;
         exit(1);
     }
 

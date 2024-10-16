@@ -16,7 +16,7 @@ using namespace cv;
 static void help(const CommandLineParser& cmd, const string& errorMessage)
 {
     cout << errorMessage << endl;
-    cout << "Avaible options:" << endl;
+    cout << "Available options:" << endl;
     cmd.printMessage();
 }
 
@@ -31,7 +31,7 @@ int main(int argc, const char * argv[])
     const char* keys =
         "{help h usage ? |false | print this message }"
         "{@image         |      | path to image }"
-        "{@darkOnLight   |false | indicates whether text to be extracted is dark on a light brackground. Defaults to false. }"
+        "{@darkOnLight   |false | indicates whether text to be extracted is dark on a light background. Defaults to false. }"
         ;
 
     CommandLineParser cmd(argc, argv, keys);

@@ -1420,7 +1420,7 @@ public:
     {
         delete [] ptr;
     }
-    void free() {
+    void release() {
         delete [] ptr;
         ptr = NULL;
     }
