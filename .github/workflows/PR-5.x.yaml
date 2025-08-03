@@ -6,6 +6,11 @@ on:
       - 5.x
 
 jobs:
+  Linux:
+    uses: opencv/ci-gha-workflow/.github/workflows/OCV-PR-Linux.yaml@main
+    with:
+      workflow_branch: main
+
   Ubuntu2004-ARM64:
     uses: opencv/ci-gha-workflow/.github/workflows/OCV-Contrib-PR-5.x-ARM64.yaml@main
 
