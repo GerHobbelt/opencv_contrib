@@ -26,7 +26,7 @@ If you need a more detailed information to use @ref cv::Tracker, please refer to
 
     @snippet tracking/samples/tutorial_customizing_cn_tracker.cpp param
 
-    To set custom paramters, an object should be created. Each tracker algorithm has their own parameter format.
+    To set custom parameters, an object should be created. Each tracker algorithm has their own parameter format.
     So, in this case we should use parameter from @ref cv::TrackerKCF since we are interested in modifying the parameter of this tracker algorithm.
 
     There are several parameters that can be configured as explained in @ref cv::TrackerKCF::Params.

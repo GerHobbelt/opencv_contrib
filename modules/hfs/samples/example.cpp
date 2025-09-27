@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
     int _h = src.rows, _w = src.cols;
 
     // initialize the HfsSegment object
-    // In this example, we used default paramters.
+    // In this example, we used default parameters.
     // However, bear in mind that you can pass in your
     // own parameters in with this function.
     Ptr<HfsSegment> h = HfsSegment::create( _h, _w );

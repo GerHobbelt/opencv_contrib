@@ -124,7 +124,7 @@ bool ICPImpl::estimateWarpNodes(WarpField& currentWarp, const Affine3f &pose,
 
 
     // indices for each node block to A,b matrices. It determines the order
-    // in which paramters are laid out
+    // in which parameters are laid out
 
     std::vector<int> baseIndices(currentWarp.n_levels, 0);
 
